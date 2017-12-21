@@ -1,0 +1,9 @@
+---
+mnist:
+  base: "http://yann.lecun.com/exdb/mnist/"
+  files: ["train-images-idx3-ubyte.gz", "train-labels-idx1-ubyte.gz", "t10k-images-idx3-ubyte.gz", "t10k-labels-idx1-ubyte.gz"]
+
+affnist:
+  base: "http://www.cs.toronto.edu/~tijmen/affNIST/32x/"
+  files: ["just_centered/training.mat.zip", "just_centered/validation.mat.zip", "transformed/test.mat.zip"]
+ 
