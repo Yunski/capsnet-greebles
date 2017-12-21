@@ -132,7 +132,7 @@ def evaluate(model, supervisor, dataset):
             progress_bar.set_description("\r>> test_err: {:.4f} - test_acc: {:.4f}".format(test_err, 1 - test_err))
         sys.stdout.write("Final - test_err: {:.4f} - test_acc: {:.4f}\n".format(test_err, 1 - test_err))
         sys.stdout.flush()
-        fd_test_err.write(str(test_err))
+        fd_test_err.write(str(test_err) + "\n")
         fd_test_err.close()
 
 
