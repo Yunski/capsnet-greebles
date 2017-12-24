@@ -12,6 +12,7 @@ def load_data(dataset, batch_size, is_training=True, samples_per_epoch=None):
     else:
         return None
 
+
 def get_train_batch(dataset, batch_size, num_threads, min_after_dequeue=5000, samples_per_epoch=None):
     if dataset == 'mnist':
         X_train, X_val, Y_train, Y_val, num_train_batches, num_val_batches = load_mnist(batch_size, samples_per_epoch=samples_per_epoch)
@@ -25,4 +26,10 @@ def get_train_batch(dataset, batch_size, num_threads, min_after_dequeue=5000, sa
                                   allow_smaller_final_batch=False)
 
     return X, Y
+
+
+def variable_on_cpu(name, shape, initializer):
+    with tf.device('/cpu:0'):
+        var = tf.get_variable(name, shape, initializer=initializer, dtype=tf.float32)
+    return var
 

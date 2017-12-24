@@ -16,6 +16,6 @@ flags.DEFINE_string('logdir', 'logs', "logs directory")
 flags.DEFINE_string('summary_dir', 'summary', "path for saving model summary")
 flags.DEFINE_string('dataset_file', 'datasets.yml', "file containing dataset urls")
 
-flags.DEFINE_boolean('is_training', False, 'toggle training mode')
+flags.DEFINE_boolean('is_training', True, 'toggle training mode')
 
 cfg = tf.app.flags.FLAGS

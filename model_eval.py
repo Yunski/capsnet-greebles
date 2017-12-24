@@ -1,58 +1,21 @@
-import argparse
 import os
 import sys
-import numpy as np
 import tensorflow as tf
 
 from tqdm import tqdm
-from config import cfg
+
 from utils import load_data
-
-from capsnet import CapsNet
-
-
-def saver(dataset, is_training=True):
-    if not os.path.exists(cfg.summary_dir):
-        os.mkdir(cfg.summary_dir)
-    summary_dir = os.path.join(cfg.summary_dir, dataset)
-    if not os.path.exists(summary_dir):
-        os.mkdir(summary_dir)
-    if is_training:
-        loss = summary_dir + '/loss.csv'
-        train_err = summary_dir + '/train_err.csv'
-        val_err = summary_dir + '/val_err.csv'
-
-        if os.path.exists(val_err):
-            os.remove(val_err)
-        if os.path.exists(loss):
-            os.remove(loss)
-        if os.path.exists(train_err):
-            os.remove(train_err)
-
-        fd_train_err = open(train_err, 'w')
-        fd_train_err.write('step,train_err\n')
-        fd_loss = open(loss, 'w')
-        fd_loss.write('step,loss\n')
-        fd_val_err = open(val_err, 'w')
-        fd_val_err.write('step,val_err\n')
-        return fd_train_err, fd_loss, fd_val_err
-    else:
-        test_err = summary_dir + '/test_err.csv'
-        if os.path.exists(test_err):
-            os.remove(test_err)
-        fd_test_err = open(test_err, 'w')
-        fd_test_err.write('test_err\n')
-        return fd_test_err
+from config import cfg
 
 def train(model, supervisor, dataset):
     data = load_data(dataset, cfg.batch_size, samples_per_epoch=cfg.samples_per_epoch)
     if not data:
         raise ValueError("{} is not an available dataset".format(dataset))
     X_train, X_val, Y_train, Y_val, num_train_batches, num_val_batches = data
-    fd_train_err, fd_loss, fd_val_err = saver(dataset)
+    fd_train_err, fd_loss, fd_val_err = saver(cfg.summary_dir, model.name, dataset)
+    logdir = os.path.join(os.path.join(cfg.logdir, model.name), dataset)
     config = tf.ConfigProto()
-    config.gpu_options.allow_growth = True
-    print("hi")
+    config.gpu_options.allow_growth = True  
     with supervisor.managed_session(config=config) as sess:
         for epoch in range(cfg.epochs):
             sys.stdout.write("Epoch {}/{}\n".format(epoch + 1, cfg.epochs)) 
@@ -106,7 +69,7 @@ def train(model, supervisor, dataset):
             sys.stdout.flush() 
             
             if (epoch + 1) % cfg.save_freq == 0:
-                supervisor.saver.save(sess, cfg.logdir + "/{}/model_epoch_{:04d}_step_{:02d}".format(dataset, epoch, global_step))
+                supervisor.saver.save(sess, logdir + "/model_epoch_{:04d}_step_{:02d}".format(epoch, global_step))
 
         fd_val_err.close()
         fd_train_err.close()
@@ -118,9 +81,11 @@ def evaluate(model, supervisor, dataset):
     if not data:
         raise ValueError("{} is not an available dataset".format(dataset))
     X_test, Y_test, num_test_batches = data
-    fd_test_err = saver(dataset, is_training=False)
+    fd_test_err = saver(cfg.summary_dir, model.name, dataset, is_training=False)
+    logdir = os.path.join(os.path.join(cfg.logdir, model.name), dataset)
+    print(logdir)
     with supervisor.managed_session(config=tf.ConfigProto(allow_soft_placement=True)) as sess:
-        supervisor.saver.restore(sess, tf.train.latest_checkpoint(os.path.join(cfg.logdir, dataset)))
+        supervisor.saver.restore(sess, tf.train.latest_checkpoint(logdir))
         tf.logging.info('Model restored!')
         test_err = 0
         progress_bar = tqdm(range(num_test_batches), total=num_test_batches, ncols=70, leave=False, unit='b')
@@ -136,29 +101,39 @@ def evaluate(model, supervisor, dataset):
         fd_test_err.close()
 
 
-def main(_):
-    dataset = cfg.dataset
-    if dataset == 'mnist':
-        input_shape = (cfg.batch_size, 28, 28, 1)
-    elif dataset == 'affnist':
-        input_shape = (cfg.batch_size, 40, 40, 1)
+def saver(summary_dir, model, dataset, is_training=True):
+    if not os.path.exists(summary_dir):
+        os.mkdir(summary_dir)
+    summary_dir = os.path.join(summary_dir, model)
+    if not os.path.exists(summary_dir):
+        os.mkdir(summary_dir)
+    summary_dir = os.path.join(summary_dir, dataset)
+    if not os.path.exists(summary_dir):
+        os.mkdir(summary_dir)
+    if is_training:
+        loss = summary_dir + '/loss.csv'
+        train_err = summary_dir + '/train_err.csv'
+        val_err = summary_dir + '/val_err.csv'
+
+        if os.path.exists(val_err):
+            os.remove(val_err)
+        if os.path.exists(loss):
+            os.remove(loss)
+        if os.path.exists(train_err):
+            os.remove(train_err)
+
+        fd_train_err = open(train_err, 'w')
+        fd_train_err.write('step,train_err\n')
+        fd_loss = open(loss, 'w')
+        fd_loss.write('step,loss\n')
+        fd_val_err = open(val_err, 'w')
+        fd_val_err.write('step,val_err\n')
+        return fd_train_err, fd_loss, fd_val_err
     else:
-        raise ValueError("{} is not an available dataset".format(dataset))
+        test_err = summary_dir + '/test_err.csv'
+        if os.path.exists(test_err):
+            os.remove(test_err)
+        fd_test_err = open(test_err, 'w')
+        fd_test_err.write('test_err\n')
+        return fd_test_err
 
-    tf.logging.info("Initializing CapsNet for {}...".format(dataset))
-    model = CapsNet(input_shape, is_training=cfg.is_training)
-    tf.logging.info("Finished initialization.")
-
-    logdir = os.path.join(cfg.logdir, dataset)
-    sv = tf.train.Supervisor(graph=model.graph, logdir=logdir, save_model_secs=0)
-    if cfg.is_training:
-        tf.logging.info("Initialize training...")
-        train(model, sv, dataset)
-        tf.logging.info("Finished training.")
-    else:
-        tf.logging.info("Initialize evaluation...")
-        evaluate(model, sv, dataset)
-        tf.logging.info("Finished evaluation.")
-
-if __name__ == '__main__':
-    tf.app.run()

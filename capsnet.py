@@ -7,6 +7,7 @@ from config import cfg
 class CapsNet(object):
     def __init__(self, input_shape, is_training=True):
         self.input_shape = input_shape
+        self.name = "capsnet"
         self.graph = tf.Graph()
         with self.graph.as_default():
             if is_training:
@@ -25,6 +26,7 @@ class CapsNet(object):
                 self.inference()
                 errors = tf.not_equal(tf.to_int32(self.labels), self.predictions)
                 self.error_rate = tf.reduce_mean(tf.cast(errors, tf.float32))          
+
 
     def inference(self, eps=1e-9):
         with tf.variable_scope('Conv1_layer'):
