@@ -15,11 +15,20 @@ Run the following script to download and extract data files.
 ```python
 python data.py
 ```
+For smallnorb, also run the script:
+```python
+python smallnorb.py
+```
 Add a new entry to datasets.yml if you wish to test on another dataset not already included.
 
 ### Training and Testing
-To train the network, set the is_training flag in config.py to True and run the script: 
+Training a model: 
 ```python
-python capsule_experiment.py
+python {model}_train.py 
 ```
-To test the network, set the is_training flag in config.py to False. 
+Testing a model: 
+```python
+python {model}_eval.py
+```
+
+Logs and train/validation/test csv files can be found under logs/ and summary/.
