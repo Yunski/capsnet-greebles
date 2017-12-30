@@ -5,7 +5,7 @@ from utils import get_train_batch
 from config import cfg
 
 class CapsNet(object):
-    def __init__(self, input_shape, is_training=True):
+    def __init__(self, input_shape, is_training=True, use_test_queue=False):
         self.input_shape = input_shape
         self.name = "capsnet"
         self.graph = tf.Graph()
@@ -20,9 +20,13 @@ class CapsNet(object):
                 self.optimizer = tf.train.AdamOptimizer()
                 self.train_op = self.optimizer.minimize(self.total_loss, global_step=self.global_step)
             else:
-                self.X = tf.placeholder(tf.float32, shape=self.input_shape)
-                self.labels = tf.placeholder(tf.int32, shape=(self.input_shape[0],))
-                self.Y = tf.one_hot(self.labels, depth=10, axis=1, dtype=tf.float32) 
+                if use_test_queue:
+                    self.X, self.labels = get_test_batch(cfg.dataset, cfg.batch_size, cfg.num_threads, samples_per_epoch=cfg.samples_per_epoch)
+                    self.Y = tf.one_hot(self.labels, depth=10, axis=1, dtype=tf.float32)
+                else:
+                    self.X = tf.placeholder(tf.float32, shape=self.input_shape)
+                    self.labels = tf.placeholder(tf.int32, shape=(self.input_shape[0],))
+                    self.Y = tf.one_hot(self.labels, depth=10, axis=1, dtype=tf.float32) 
                 self.inference()
                 errors = tf.not_equal(tf.to_int32(self.labels), self.predictions)
                 self.error_rate = tf.reduce_mean(tf.cast(errors, tf.float32))          

@@ -15,10 +15,10 @@ def train(model, supervisor, dataset):
     fd_train_err, fd_loss, fd_val_err = saver(cfg.summary_dir, model.name, dataset)
     logdir = os.path.join(os.path.join(cfg.logdir, model.name), dataset)
     config = tf.ConfigProto()
-    config.gpu_options.allow_growth = True  
+    config.gpu_options.allow_growth = True
     with supervisor.managed_session(config=config) as sess:
         for epoch in range(cfg.epochs):
-            sys.stdout.write("Epoch {}/{}\n".format(epoch + 1, cfg.epochs)) 
+            sys.stdout.write("Epoch {}/{}\n".format(epoch + 1, cfg.epochs))
             sys.stdout.flush()
             if supervisor.should_stop():
                 print('supervisor stopped!')
@@ -26,13 +26,13 @@ def train(model, supervisor, dataset):
             progress_bar = tqdm(range(num_train_batches), total=num_train_batches, ncols=70, leave=False, unit='b')
             epoch_train_err = 0
             epoch_val_err = 0
-            for step in progress_bar:    
+            for step in progress_bar:
                 global_step = epoch * num_train_batches + step
                 train_err = 0
                 if global_step % cfg.train_sum_freq == 0:
-                    _, loss, train_err, summary_str = sess.run([model.train_op, 
-                                                                model.total_loss, 
-                                                                model.error_rate, 
+                    _, loss, train_err, summary_str = sess.run([model.train_op,
+                                                                model.total_loss,
+                                                                model.error_rate,
                                                                 model.train_summary])
                     supervisor.summary_writer.add_summary(summary_str, global_step)
 
@@ -46,7 +46,7 @@ def train(model, supervisor, dataset):
                 epoch_train_err = (epoch_train_err * step + train_err) / (step + 1)
                 progress_bar.set_description("\rtrain_err: {:.4f} - train_acc: {:.4f}".format(epoch_train_err, 1 - epoch_train_err))
 
-                if cfg.val_sum_freq != 0 and (global_step) % cfg.val_sum_freq == 0:
+                if num_val_batches > 0 and cfg.val_sum_freq != 0 and (global_step) % cfg.val_sum_freq == 0:
                     val_err = 0
                     for i in range(num_val_batches):
                         start = i * cfg.batch_size
@@ -64,10 +64,14 @@ def train(model, supervisor, dataset):
                 err = sess.run(model.error_rate, {model.X: X_val[start:end], model.labels: Y_val[start:end]})
                 epoch_val_err = (epoch_val_err * step + err) / (step + 1)
                 progress_bar.set_description("\rval_err: {:.4f} - val_acc: {:.4f}".format(epoch_val_err, 1 - epoch_val_err))
-    
-            sys.stdout.write("train_err: {:.4f} - train_acc: {:.4f} - val_err: {:.4f} - val_acc: {:.4f}\n".format(epoch_train_err, 1 - epoch_train_err, epoch_val_err, 1 - epoch_val_err))
-            sys.stdout.flush() 
-            
+
+            sys.stdout.write("train_err: {:.4f} - train_acc: {:.4f}".format(epoch_train_err, 1 - epoch_train_err))
+            if num_val_batches > 0:
+                sys.stdout.write(" - val_err: {:.4f} - val_acc: {:.4f}\n".format(epoch_val_err, 1 - epoch_val_err))
+            else:
+                sys.stdout.write("\n")
+            sys.stdout.flush()
+
             if (epoch + 1) % cfg.save_freq == 0:
                 supervisor.saver.save(sess, logdir + "/model_epoch_{:04d}_step_{:02d}".format(epoch, global_step))
 
@@ -83,13 +87,12 @@ def evaluate(model, supervisor, dataset):
     X_test, Y_test, num_test_batches = data
     fd_test_err = saver(cfg.summary_dir, model.name, dataset, is_training=False)
     logdir = os.path.join(os.path.join(cfg.logdir, model.name), dataset)
-    print(logdir)
     with supervisor.managed_session(config=tf.ConfigProto(allow_soft_placement=True)) as sess:
         supervisor.saver.restore(sess, tf.train.latest_checkpoint(logdir))
         tf.logging.info('Model restored!')
         test_err = 0
         progress_bar = tqdm(range(num_test_batches), total=num_test_batches, ncols=70, leave=False, unit='b')
-        for step in progress_bar:    
+        for step in progress_bar:
             start = step * cfg.batch_size
             end = start + cfg.batch_size
             err = sess.run(model.error_rate, {model.X: X_test[start:end], model.labels: Y_test[start:end]})
@@ -136,4 +139,3 @@ def saver(summary_dir, model, dataset, is_training=True):
         fd_test_err = open(test_err, 'w')
         fd_test_err.write('test_err\n')
         return fd_test_err
-

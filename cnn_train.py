@@ -11,6 +11,8 @@ def main(_):
         input_shape = (cfg.batch_size, 28, 28, 1)
     elif dataset == 'affnist':
         input_shape = (cfg.batch_size, 40, 40, 1)
+    elif dataset == 'smallnorb':
+        input_shape = (cfg.batch_size, 32, 32, 1)
     else:
         raise ValueError("{} is not an available dataset".format(dataset))
     

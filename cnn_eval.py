@@ -7,15 +7,20 @@ from cnn_baseline import CNN
 
 def main(_):
     dataset = cfg.dataset
+    use_test_queue = False
+
     if dataset == 'mnist':
         input_shape = (cfg.batch_size, 28, 28, 1)
     elif dataset == 'affnist':
         input_shape = (cfg.batch_size, 40, 40, 1)
+    elif dataset == 'smallnorb':
+        input_shape = (cfg.batch_size, 32, 32, 1)
+        use_test_queue = True
     else:
         raise ValueError("{} is not an available dataset".format(dataset))
     
     tf.logging.info("Initializing CNN for {}...".format(dataset))
-    model = CNN(input_shape=input_shape, is_training=False)
+    model = CNN(input_shape=input_shape, is_training=False, use_test_queue=use_test_queue)
     tf.logging.info("Finished initialization.")
 
     if not os.path.exists(cfg.logdir):

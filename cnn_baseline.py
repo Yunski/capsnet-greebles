@@ -4,10 +4,10 @@ from config import cfg
 from utils import get_train_batch, variable_on_cpu
 
 class CNN(object):
-    def __init__(self, input_shape, is_training=True):
+    def __init__(self, input_shape, is_training=True, use_test_queue=False):
         self.input_shape = input_shape
         self.name = "cnn"
-        self.graph = tf.Graph() 
+        self.graph = tf.Graph()
         with self.graph.as_default():
             if is_training:
                 self.X, self.labels = get_train_batch(cfg.dataset, cfg.batch_size, cfg.num_threads, samples_per_epoch=cfg.samples_per_epoch)
@@ -18,8 +18,11 @@ class CNN(object):
                 self.optimizer = tf.train.AdamOptimizer()
                 self.train_op = self.optimizer.minimize(self.total_loss, global_step=self.global_step)
             else:
-                self.X = tf.placeholder(tf.float32, shape=self.input_shape)
-                self.labels = tf.placeholder(tf.int32, shape=(self.input_shape[0],))
+                if use_test_queue:
+                    self.X, self.labels = get_test_batch(cfg.dataset, cfg.batch_size, cfg.num_threads, samples_per_epoch=cfg.samples_per_epoch)
+                else:
+                    self.X = tf.placeholder(tf.float32, shape=self.input_shape)
+                    self.labels = tf.placeholder(tf.int32, shape=(self.input_shape[0],))
                 self.inference(self.X, keep_prob=1.0)
                 self.loss()
                 self.error()
@@ -27,7 +30,7 @@ class CNN(object):
 
     def inference(self, inputs, keep_prob=0.5):
         with tf.variable_scope('conv1') as scope:
-            kernel = variable_on_cpu('weights', 
+            kernel = variable_on_cpu('weights',
                                       shape=[5, 5, inputs.shape[-1].value, 256],
                                       initializer=tf.contrib.layers.xavier_initializer())
             conv = tf.nn.conv2d(inputs, kernel, [1, 1, 1, 1], padding='VALID')
@@ -55,7 +58,7 @@ class CNN(object):
 
         with tf.variable_scope('fc1') as scope:
             reshape = tf.reshape(conv3, [conv3.shape[0].value, -1])
-            weights = variable_on_cpu('weights', 
+            weights = variable_on_cpu('weights',
                                        shape=[reshape.shape[1].value, 328],
                                        initializer=tf.contrib.layers.xavier_initializer())
             biases = variable_on_cpu('biases', [328], tf.constant_initializer(0.0))
@@ -71,14 +74,14 @@ class CNN(object):
         with tf.variable_scope('dropout') as scope:
             dropout = tf.nn.dropout(fc2, keep_prob)
             weights = variable_on_cpu('weights',
-                                       shape=[dropout.shape[1].value, 10], 
+                                       shape=[dropout.shape[1].value, 10],
                                        initializer=tf.contrib.layers.xavier_initializer())
 
             biases = variable_on_cpu('biases', [10], tf.constant_initializer(0.0))
             logits = tf.matmul(dropout, weights) + biases
 
         self.logits = logits
-    
+
 
     def loss(self):
         self.total_loss = tf.reduce_sum(
@@ -100,4 +103,3 @@ class CNN(object):
         train_summary.append(tf.summary.scalar('train/total_loss', self.total_loss))
         self.train_summary = tf.summary.merge(train_summary)
         self.error()
-
