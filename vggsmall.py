@@ -1,7 +1,5 @@
-# VGG-like CNN for small-image classification
-# Cannot use original VGG-16 architecture because input images too small:
-# We leave off the fifth (final) block of convolution/pooling
-#
+# smaller VGG-like CNN for training bigger VGG-like model
+# 
 # Architecture:
 # Block 1: two 3x3 convolutions (64 channels), one 2x2 max-pool
 # Block 2: two 3x3 convolutions (128 channels), one 2x2 max-pool
@@ -19,7 +17,7 @@ from config import cfg
 from utils import get_train_batch, variable_on_cpu
 
 
-class VGGNet(object):
+class VGGSmallNet(object):
     def __init__(self, input_shape, is_training=True, use_test_queue=False):
         self.input_shape = input_shape
         self.name = "vggnet"
@@ -77,7 +75,7 @@ class VGGNet(object):
        
         with tf.name_scope('pool1') as scope:
             pool1 = pool_2x2(conv2)
-
+        '''
         # block 2: three 3x3 conv filters, one 2x2 max-pool, 128 channels
         with tf.variable_scope('conv3') as scope:
             conv3 = conv_3x3_with_relu(pool1, 128)
@@ -113,10 +111,10 @@ class VGGNet(object):
         
         with tf.name_scope('pool3') as scope:
             pool4 = pool_2x2(conv10)
-
+        '''
         # two fully-connected layers
         with tf.variable_scope('fc1') as scope:
-            fc1 = fully_connected(pool4, 512)
+            fc1 = fully_connected(pool1, 512)
 
         with tf.variable_scope('fc2') as scope:
             fc2 = fully_connected(fc1, 10)
