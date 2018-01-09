@@ -1,14 +1,14 @@
 # smaller VGG-like CNN for training bigger VGG-like model
 # 
 # Architecture:
-# Block 1: two 3x3 convolutions (64 channels), one 2x2 max-pool
-# Block 2: two 3x3 convolutions (128 channels), one 2x2 max-pool
-# Block 3: three 3x3 convolutions (256 channels), one 2x2 max-pool
-# Block 4: three 3x3 convolutions (512 channels), one 2x2 max-pool
+# Block 1: one 3x3 convolution (64 channels), one 2x2 max-pool
+# Block 2: one 3x3 convolution (128 channels), one 2x2 max-pool
+# Block 3: one 3x3 convolution (256 channels), one 2x2 max-pool
+# Block 4: one 3x3 convolution (512 channels), one 2x2 max-pool
 # two fully-connected layers (one with 512 channels, one with 10 channels)
 # softmax layer
 #
-# total: 12 convolutional layers, 4 max-pool layers, 3 fully-connected layers
+# total: 4 convolutional layers, 4 max-pool layers, 2 fully-connected layers
 
 
 import tensorflow as tf
@@ -30,7 +30,7 @@ class VGGSmallNet(object):
                 self.loss()
                 self._summary()
                 self.global_step = tf.Variable(0, name='global_step', trainable=False)
-                learning_rate = 1e-5  # decrease by factor of 10 if validation error stops decreasing
+                learning_rate = 1e-2  # decrease by factor of 10 if validation error stops decreasing
                 self.optimizer = tf.train.GradientDescentOptimizer(learning_rate)
                 self.train_op = self.optimizer.minimize(self.total_loss, global_step=self.global_step)
             else:

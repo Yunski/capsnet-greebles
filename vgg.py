@@ -10,7 +10,7 @@
 # two fully-connected layers (one with 512 channels, one with 10 channels)
 # softmax layer
 #
-# total: 12 convolutional layers, 4 max-pool layers, 3 fully-connected layers
+# total: 12 convolutional layers, 4 max-pool layers, 2 fully-connected layers
 
 
 import tensorflow as tf
@@ -32,7 +32,7 @@ class VGGNet(object):
                 self.loss()
                 self._summary()
                 self.global_step = tf.Variable(0, name='global_step', trainable=False)
-                learning_rate = 1e-6 # decrease by factor of 10 if val error stops decreasing
+                learning_rate = 1e-3 # decrease by factor of 10 if val error stops decreasing
                 self.optimizer = tf.train.GradientDescentOptimizer(learning_rate)
                 self.train_op = self.optimizer.minimize(self.total_loss, global_step=self.global_step)
             else:
