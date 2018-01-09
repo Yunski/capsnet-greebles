@@ -32,7 +32,8 @@ class VGGNet(object):
                 self.loss()
                 self._summary()
                 self.global_step = tf.Variable(0, name='global_step', trainable=False)
-                self.optimizer = tf.train.AdamOptimizer()
+                learning_rate = 1e-6 # decrease by factor of 10 if val error stops decreasing
+                self.optimizer = tf.train.GradientDescentOptimizer(learning_rate)
                 self.train_op = self.optimizer.minimize(self.total_loss, global_step=self.global_step)
             else:
                 if use_test_queue:
@@ -46,11 +47,14 @@ class VGGNet(object):
                     self.error()
 
     def inference(self, inputs, keep_prob=0.5):
-        def conv_3x3_with_relu(x, channels):
+        def conv_3x3_with_relu(x, channels, 
+                               kernel_init=tf.contrib.layers.xavier_initializer(), 
+                               biases_init=tf.constant_initializer(0.0)):
             kernel = variable_on_cpu('weights', shape=[3, 3, x.shape[-1].value, channels],
-                                     initializer=tf.contrib.layers.xavier_initializer())
+                                     initializer=kernel_init)
             conv = tf.nn.conv2d(x, kernel, [1, 1, 1, 1], padding='SAME')
-            biases = variable_on_cpu('biases', [channels], tf.constant_initializer(0.0))
+            biases = variable_on_cpu('biases', [channels], 
+                     initializer=biases_init)
             pre_activation = tf.nn.bias_add(conv, biases)
             conv_with_activation = tf.nn.relu(pre_activation, name=scope.name)
             return conv_with_activation
@@ -59,18 +63,26 @@ class VGGNet(object):
             pool = tf.nn.max_pool(x, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding="SAME")
             return pool
 
-        def fully_connected(x, channels):
+        def fully_connected(x, channels,
+                            kernel_init=tf.contrib.layers.xavier_initializer(), 
+                            biases_init=tf.constant_initializer(0.0)):
             reshape = tf.reshape(x, [x.shape[0].value, -1])
             weights = variable_on_cpu('weights',
                                       shape=[reshape.shape[1].value, channels],
-                                      initializer=tf.contrib.layers.xavier_initializer())
-            biases = variable_on_cpu('biases', [channels], tf.constant_initializer(0.0))
+                                      initializer=kernel_init)
+            biases = variable_on_cpu('biases', [channels], biases_init)
             fc = tf.nn.relu(tf.matmul(reshape, weights) + biases, name=scope.name)
             return fc
 
+        # grab weights from VGGSmallNet
+        small_ckpt_state = tf.train.get_checkpoint_state('logs/vggsmallnet/' + cfg.dataset)
+        reader = tf.train.NewCheckpointReader(small_ckpt_state.model_checkpoint_path)
+
         # block 1: three 3x3 conv filters, one 2x2 max-pool, 64 channels
         with tf.variable_scope('conv1') as scope:
-            conv1 = conv_3x3_with_relu(inputs, 64)
+            kernel_init = tf.constant(reader.get_tensor('conv1/weights'))
+            biases_init = tf.constant(reader.get_tensor('conv1/biases'))
+            conv1 = conv_3x3_with_relu(inputs, 64, kernel_init=kernel_init, biases_init=biases_init)
         
         with tf.variable_scope('conv2') as scope:
             conv2 = conv_3x3_with_relu(conv1, 64)
@@ -80,7 +92,9 @@ class VGGNet(object):
 
         # block 2: three 3x3 conv filters, one 2x2 max-pool, 128 channels
         with tf.variable_scope('conv3') as scope:
-            conv3 = conv_3x3_with_relu(pool1, 128)
+            kernel_init = tf.constant(reader.get_tensor('conv3/weights'))
+            biases_init = tf.constant(reader.get_tensor('conv3/biases'))
+            conv3 = conv_3x3_with_relu(pool1, 128, kernel_init=kernel_init, biases_init=biases_init)
         
         with tf.variable_scope('conv4') as scope:
             conv4 = conv_3x3_with_relu(conv3, 128)
@@ -90,7 +104,9 @@ class VGGNet(object):
 
         # block 3: three 3x3 conv filters, one 2x2 max-pool, 256 channels
         with tf.variable_scope('conv5') as scope:
-            conv5 = conv_3x3_with_relu(pool2, 256)
+            kernel_init = tf.constant(reader.get_tensor('conv5/weights'))
+            biases_init = tf.constant(reader.get_tensor('conv5/biases'))
+            conv5 = conv_3x3_with_relu(pool2, 256, kernel_init=kernel_init, biases_init=biases_init)
         
         with tf.variable_scope('conv6') as scope:
             conv6 = conv_3x3_with_relu(conv5, 256)
@@ -99,10 +115,12 @@ class VGGNet(object):
             conv7 = conv_3x3_with_relu(conv6, 256)
         
         with tf.name_scope('pool3') as scope:
-            pool3 = pool_2x2(conv6)
+            pool3 = pool_2x2(conv7)
 
         # block 4: three 3x3 conv filters, one 2x2 max-pool, 512 channels
         with tf.variable_scope('conv8') as scope:
+            kernel_init = tf.constant(reader.get_tensor('conv8/weights'))
+            biases_init = tf.constant(reader.get_tensor('conv8/biases'))
             conv8 = conv_3x3_with_relu(pool3, 512)
         
         with tf.variable_scope('conv9') as scope:
@@ -116,10 +134,14 @@ class VGGNet(object):
 
         # two fully-connected layers
         with tf.variable_scope('fc1') as scope:
-            fc1 = fully_connected(pool4, 512)
+            kernel_init = tf.constant(reader.get_tensor('fc1/weights'))
+            biases_init = tf.constant(reader.get_tensor('fc1/biases'))
+            fc1 = fully_connected(pool4, 512, kernel_init=kernel_init, biases_init=biases_init)
 
         with tf.variable_scope('fc2') as scope:
-            fc2 = fully_connected(fc1, 10)
+            kernel_init = tf.constant(reader.get_tensor('fc2/weights'))
+            biases_init = tf.constant(reader.get_tensor('fc2/biases'))
+            fc2 = fully_connected(fc1, 10, kernel_init=kernel_init, biases_init=biases_init)
 
         # final softmax layer
         with tf.name_scope('softmax') as scope:

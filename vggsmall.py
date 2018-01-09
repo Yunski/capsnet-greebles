@@ -20,7 +20,7 @@ from utils import get_train_batch, variable_on_cpu
 class VGGSmallNet(object):
     def __init__(self, input_shape, is_training=True, use_test_queue=False):
         self.input_shape = input_shape
-        self.name = "vggnet"
+        self.name = "vggsmallnet"
         self.graph = tf.Graph()
         with self.graph.as_default():
             if is_training:
@@ -30,7 +30,8 @@ class VGGSmallNet(object):
                 self.loss()
                 self._summary()
                 self.global_step = tf.Variable(0, name='global_step', trainable=False)
-                self.optimizer = tf.train.AdamOptimizer()
+                learning_rate = 1e-5  # decrease by factor of 10 if validation error stops decreasing
+                self.optimizer = tf.train.GradientDescentOptimizer(learning_rate)
                 self.train_op = self.optimizer.minimize(self.total_loss, global_step=self.global_step)
             else:
                 if use_test_queue:
@@ -69,53 +70,53 @@ class VGGSmallNet(object):
         # block 1: three 3x3 conv filters, one 2x2 max-pool, 64 channels
         with tf.variable_scope('conv1') as scope:
             conv1 = conv_3x3_with_relu(inputs, 64)
-        
+        '''
         with tf.variable_scope('conv2') as scope:
             conv2 = conv_3x3_with_relu(conv1, 64)
-       
+       '''
         with tf.name_scope('pool1') as scope:
-            pool1 = pool_2x2(conv2)
-        '''
+            pool1 = pool_2x2(conv1)
+        
         # block 2: three 3x3 conv filters, one 2x2 max-pool, 128 channels
         with tf.variable_scope('conv3') as scope:
             conv3 = conv_3x3_with_relu(pool1, 128)
-        
+        '''
         with tf.variable_scope('conv4') as scope:
             conv4 = conv_3x3_with_relu(conv3, 128)
-        
+        '''
         with tf.name_scope('pool2') as scope:
-            pool2 = pool_2x2(conv4)
-
+            pool2 = pool_2x2(conv3)
+        
         # block 3: three 3x3 conv filters, one 2x2 max-pool, 256 channels
         with tf.variable_scope('conv5') as scope:
             conv5 = conv_3x3_with_relu(pool2, 256)
-        
+        '''
         with tf.variable_scope('conv6') as scope:
             conv6 = conv_3x3_with_relu(conv5, 256)
-
+	
         with tf.variable_scope('conv7') as scope:
             conv7 = conv_3x3_with_relu(conv6, 256)
-        
+        '''
         with tf.name_scope('pool3') as scope:
-            pool3 = pool_2x2(conv6)
+            pool3 = pool_2x2(conv5)
 
         # block 4: three 3x3 conv filters, one 2x2 max-pool, 512 channels
         with tf.variable_scope('conv8') as scope:
             conv8 = conv_3x3_with_relu(pool3, 512)
-        
+        '''
         with tf.variable_scope('conv9') as scope:
             conv9 = conv_3x3_with_relu(conv8, 512)
 
         with tf.variable_scope('conv10') as scope:
             conv10 = conv_3x3_with_relu(conv9, 512)
-        
-        with tf.name_scope('pool3') as scope:
-            pool4 = pool_2x2(conv10)
         '''
+        with tf.name_scope('pool3') as scope:
+            pool4 = pool_2x2(conv8)
+        
         # two fully-connected layers
         with tf.variable_scope('fc1') as scope:
-            fc1 = fully_connected(pool1, 512)
-
+            fc1 = fully_connected(pool4, 512)
+        
         with tf.variable_scope('fc2') as scope:
             fc2 = fully_connected(fc1, 10)
 

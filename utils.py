@@ -76,7 +76,12 @@ def get_test_batch(dataset, batch_size, num_threads, min_after_dequeue=5000, sam
     return X, Y
 
 
+# ignores shape if initializer is a constant
 def variable_on_cpu(name, shape, initializer):
     with tf.device('/cpu:0'):
-        var = tf.get_variable(name, shape, initializer=initializer, dtype=tf.float32)
+        var = None
+        if callable(initializer):
+            var = tf.get_variable(name, shape, initializer=initializer, dtype=tf.float32)
+        else:
+            var = tf.get_variable(name, initializer=initializer)
     return var
