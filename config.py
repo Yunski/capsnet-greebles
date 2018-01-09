@@ -2,7 +2,8 @@ import tensorflow as tf
 
 flags = tf.app.flags
 
-flags.DEFINE_integer('batch_size', 64, "batch size")
+flags.DEFINE_integer('batch_size', 32, "batch size")
+flags.DEFINE_integer('test_batch_size', 100, "batch size")
 flags.DEFINE_integer('epochs', 20, 'epochs')
 flags.DEFINE_integer('samples_per_epoch', 32000, 'samples per epoch')
 

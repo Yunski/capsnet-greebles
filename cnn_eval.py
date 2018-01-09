@@ -10,11 +10,11 @@ def main(_):
     use_test_queue = False
 
     if dataset == 'mnist':
-        input_shape = (cfg.batch_size, 28, 28, 1)
+        input_shape = (cfg.test_batch_size, 28, 28, 1)
     elif dataset == 'affnist':
-        input_shape = (cfg.batch_size, 40, 40, 1)
+        input_shape = (cfg.test_batch_size, 40, 40, 1)
     elif dataset == 'smallnorb':
-        input_shape = (cfg.batch_size, 32, 32, 1)
+        input_shape = (cfg.test_batch_size, 32, 32, 1)
         use_test_queue = True
     else:
         raise ValueError("{} is not an available dataset".format(dataset))
