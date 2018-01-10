@@ -3,8 +3,6 @@ import numpy as np
 import tensorflow as tf
 import matplotlib.pyplot as plt
 
-from config import cfg
-
 np.random.seed(10234)
 
 def plot_imgs(inputs, labels):
@@ -92,7 +90,7 @@ def read_norb_tfrecord(filenames):
 
     assert isinstance(filenames, list)
 
-    filename_queue = tf.train.string_input_producer(filenames, num_epochs=cfg.epochs)
+    filename_queue = tf.train.string_input_producer(filenames, num_epochs=None)
     reader = tf.TFRecordReader()
     _, serialized_example = reader.read(filename_queue)
     features = tf.parse_single_example(serialized_example,
@@ -110,11 +108,11 @@ def load_norb(batch_size, samples_per_epoch=None, is_training=True):
     if is_training:
         num_train_batches = 24300 * 2 // batch_size
         # do not provide training or validation data here
-        return None, None, None, None, num_train_batches, 0
+        return [], [], [], [], num_train_batches, 0
     else:
         num_test_batches = 24300 * 2 // batch_size
         # do not provide test data here
-        return None, None, num_test_batches
+        return [], [], num_test_batches
 
 
 if __name__ == '__main__':

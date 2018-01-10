@@ -93,9 +93,12 @@ def evaluate(model, supervisor, dataset):
         test_err = 0
         progress_bar = tqdm(range(num_test_batches), total=num_test_batches, ncols=70, leave=False, unit='b')
         for step in progress_bar:
-            start = step * cfg.test_batch_size
-            end = start + cfg.test_batch_size
-            err = sess.run(model.error_rate, {model.X: X_test[start:end], model.labels: Y_test[start:end]})
+            if len(X_test) == 0:
+                err = sess.run(model.error_rate)
+            else:
+                start = step * cfg.test_batch_size
+                end = start + cfg.test_batch_size
+                err = sess.run(model.error_rate, {model.X: X_test[start:end], model.labels: Y_test[start:end]})
             test_err = (test_err * step + err) / (step + 1)
             progress_bar.set_description("\r>> test_err: {:.4f} - test_acc: {:.4f}".format(test_err, 1 - test_err))
         sys.stdout.write("Final - test_err: {:.4f} - test_acc: {:.4f}\n".format(test_err, 1 - test_err))

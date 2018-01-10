@@ -1,7 +1,7 @@
 import tensorflow as tf
 
 from config import cfg
-from utils import get_train_batch, variable_on_cpu
+from utils import get_train_batch, get_test_batch, variable_on_cpu
 
 class CNN(object):
     def __init__(self, input_shape, is_training=True, use_test_queue=False):
@@ -19,7 +19,7 @@ class CNN(object):
                 self.train_op = self.optimizer.minimize(self.total_loss, global_step=self.global_step)
             else:
                 if use_test_queue:
-                    self.X, self.labels = get_test_batch(cfg.dataset, cfg.batch_size, cfg.num_threads, samples_per_epoch=cfg.samples_per_epoch)
+                    self.X, self.labels = get_test_batch(cfg.dataset, cfg.test_batch_size, cfg.num_threads)
                 else:
                     self.X = tf.placeholder(tf.float32, shape=self.input_shape)
                     self.labels = tf.placeholder(tf.int32, shape=(self.input_shape[0],))

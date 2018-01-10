@@ -61,13 +61,23 @@ def get_test_batch(dataset, batch_size, num_threads, min_after_dequeue=5000, sam
         CHUNK_RE = re.compile(r"test-\d+\.tfrecords")
         data_dir = "data/smallnorb"
         chunk_files = [os.path.join(data_dir, fname) for fname in os.listdir(data_dir) if CHUNK_RE.match(fname)]
-        X_test, Y_test = read_norb_tfrecord(chunk_files, epochs)
+        X_test, Y_test = read_norb_tfrecord(chunk_files)
         X_test = tf.image.resize_images(X_test, [48, 48])
         X_test = tf.slice(X_test, [8, 8, 0], [32, 32, 1])
+        params_shape = [X_test.get_shape()[-1]]
+        beta = tf.get_variable(
+            'beta', params_shape, tf.float32,
+            initializer=tf.constant_initializer(0.0, tf.float32))
+        gamma = tf.get_variable(
+            'gamma', params_shape, tf.float32,
+            initializer=tf.constant_initializer(1.0, tf.float32))
+        mean, variance = tf.nn.moments(X_test, [0, 1, 2])
+        X_test = tf.nn.batch_normalization(X_test, mean, variance, beta, gamma, 0.001)
+        data_queues = [X_test, Y_test]
     else:
         raise ValueError("{} is not an available dataset".format(dataset))
 
-    X, Y = tf.train.shuffle_batch([X_test, Y_test], num_threads=num_threads,
+    X, Y = tf.train.shuffle_batch(data_queues, num_threads=num_threads,
                                   batch_size=batch_size,
                                   capacity=min_after_dequeue + (num_threads + 1) * batch_size,
                                   min_after_dequeue=min_after_dequeue,
