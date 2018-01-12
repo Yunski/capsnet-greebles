@@ -4,7 +4,7 @@ flags = tf.app.flags
 
 flags.DEFINE_integer('batch_size', 40, "batch size")
 flags.DEFINE_integer('test_batch_size', 100, "batch size")
-flags.DEFINE_integer('epochs', 20, 'epochs')
+flags.DEFINE_integer('epochs', 50, 'epochs')
 flags.DEFINE_integer('samples_per_epoch', 0, 'samples per epoch')
 
 flags.DEFINE_integer('num_threads', 8, "number of threads of enqueueing examples")

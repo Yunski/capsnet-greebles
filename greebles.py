@@ -12,27 +12,34 @@ import tensorflow as tf
 from PIL import Image
 from sklearn.model_selection import train_test_split
 
-def convertPngsToNPY():
+def convertPngsToNPY(visualize=False):
     print("Converting pngs to numpy array file...")
     path = os.path.join("data", "greebles")
     path = os.path.join(path, "images/*.png")
     image_paths = glob.glob(path)
-    num_images = len(image_paths)
+    num_images = len(image_paths) if not visualize else 20
     random.shuffle(image_paths)
     images = np.zeros((num_images, 48, 48, 1))
     labels = np.zeros((num_images))
 
     for i, image_path in enumerate(image_paths):
+        if i == num_images:
+            break
         img = Image.open(image_path).convert('L')
         images[i] = np.array(img).reshape(48, 48, 1)
         labels[i] = int(re.search('\d+', image_path).group()) - 1
 
-    X_train, X_test, Y_train, Y_test = train_test_split(images, labels, test_size=5000)
-    np.save("data/greebles/train-images.npy", X_train)
-    np.save("data/greebles/train-labs.npy", Y_train)
-    np.save("data/greebles/test-images.npy", X_test)
-    np.save("data/greebles/test-labs.npy", Y_test)
-    print("Successfully converted pngs.")
+    if visualize:
+        np.save("data/greebles/vis-images.npy", images)
+        np.save("data/greebles/vis-labs.npy", labels)
+        print("Successfully saved visualization arrays.")
+    else:
+        X_train, X_test, Y_train, Y_test = train_test_split(images, labels, test_size=5000)
+        np.save("data/greebles/train-images.npy", X_train)
+        np.save("data/greebles/train-labs.npy", Y_train)
+        np.save("data/greebles/test-images.npy", X_test)
+        np.save("data/greebles/test-labs.npy", Y_test)
+        print("Successfully converted pngs.")
 
 
 def write_data_to_tfrecord(is_training=True, chunkify=False):
@@ -41,7 +48,7 @@ def write_data_to_tfrecord(is_training=True, chunkify=False):
     """
     kind = "train" if is_training else "test"
     print("Start writing greebles {} data.".format(kind))
-    total_num_images = 7960 if is_training else 5000
+    total_num_images = 11000 if is_training else 5000
     CHUNK = total_num_images // 10  # create 10 chunks
 
     start = time.time()
@@ -104,7 +111,7 @@ def read_greebles_tfrecord(filenames):
 
 def load_greebles(batch_size, samples_per_epoch=None, is_training=True):
     if is_training:
-        num_train_batches = samples_per_epoch // batch_size if samples_per_epoch else 7960 // batch_size
+        num_train_batches = samples_per_epoch // batch_size if samples_per_epoch else 11000 // batch_size
         # do not provide training or validation data here
         return [], [], [], [], num_train_batches, 0
     else:
@@ -124,7 +131,6 @@ def test(is_training=True):
                    for fname in os.listdir(processed_dir)
                    if CHUNK_RE.match(fname)]
     image, label = read_greebles_tfrecord(chunk_files)
-    """
     image = tf.image.random_brightness(image, max_delta=32. / 255.)
     image = tf.image.random_contrast(image, lower=0.5, upper=1.5)
 
@@ -141,7 +147,6 @@ def test(is_training=True):
     image = tf.nn.batch_normalization(image, mean, variance, beta, gamma, 0.001)
     
     image = tf.random_crop(image, [32, 32, 1])
-    """
     batch_size = 8
     x, y = tf.train.shuffle_batch([image, label], batch_size=batch_size, capacity=batch_size * 64,
                                   min_after_dequeue=batch_size * 32, allow_smaller_final_batch=False)
@@ -169,6 +174,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Greebles Data Writer')
     parser.add_argument('-f', '--force', action='store_true') 
     parser.add_argument('-t', '--test', action='store_true') 
+    parser.add_argument('-v', '--visualize', action='store_true') 
     args = parser.parse_args()
 
     train_imgs_file = "data/greebles/train-images.npy"
@@ -178,6 +184,8 @@ if __name__ == '__main__':
 
     if args.test:
         test()
+    elif args.visualize:
+        convertPngsToNPY(visualize=True)
     else: 
         if args.force or (not os.path.isfile(train_imgs_file) or \
             not os.path.isfile(train_labs_file) or \

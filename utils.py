@@ -23,7 +23,7 @@ def load_data(dataset, batch_size, is_training=True, samples_per_epoch=None, use
         raise ValueError("{} is not an available dataset".format(dataset))
 
 
-def get_train_batch(dataset, batch_size, num_threads, min_after_dequeue=1000, samples_per_epoch=None):
+def get_train_batch(dataset, batch_size, num_threads, min_after_dequeue=5000, samples_per_epoch=None):
     if samples_per_epoch == 0:
         samples_per_epoch = None
     if dataset == 'mnist':
@@ -62,7 +62,7 @@ def get_train_batch(dataset, batch_size, num_threads, min_after_dequeue=1000, sa
     return X, Y
 
 
-def get_test_batch(dataset, batch_size, num_threads, min_after_dequeue=1000, samples_per_epoch=None):
+def get_test_batch(dataset, batch_size, num_threads, min_after_dequeue=5000, samples_per_epoch=None):
     if dataset == 'smallnorb' or dataset == 'greebles':
         CHUNK_RE = re.compile(r"test-\d+\.tfrecords")
         data_dir = "data/smallnorb" if dataset == 'smallnorb' else "data/greebles"
