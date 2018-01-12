@@ -16,6 +16,9 @@ def main(_):
     elif dataset == 'smallnorb':
         input_shape = (cfg.test_batch_size, 32, 32, 1)
         use_test_queue = True
+    elif dataset == 'greebles':
+        input_shape = (cfg.test_batch_size, 32, 32, 1)
+        use_test_queue = True
     else:
         raise ValueError("{} is not an available dataset".format(dataset))
     

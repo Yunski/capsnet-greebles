@@ -8,7 +8,7 @@ from utils import load_data
 from config import cfg
 
 def train(model, supervisor, dataset):
-    data = load_data(dataset, cfg.batch_size, samples_per_epoch=cfg.samples_per_epoch)
+    data = load_data(dataset, cfg.batch_size, samples_per_epoch=cfg.samples_per_epoch, use_val_only=True)
     if not data:
         raise ValueError("{} is not an available dataset".format(dataset))
     X_train, X_val, Y_train, Y_val, num_train_batches, num_val_batches = data
