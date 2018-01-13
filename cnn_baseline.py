@@ -4,18 +4,18 @@ from config import cfg
 from utils import get_train_batch, get_test_batch, variable_on_cpu
 
 class CNN(object):
-    def __init__(self, input_shape, is_training=True, use_test_queue=False):
+    def __init__(self, input_shape, num_classes, is_training=True, use_test_queue=False):
         self.input_shape = input_shape
         self.name = "cnn"
         self.graph = tf.Graph()
         with self.graph.as_default():
             if is_training:
                 self.X, self.labels = get_train_batch(cfg.dataset, cfg.batch_size, cfg.num_threads, samples_per_epoch=cfg.samples_per_epoch)
-                self.inference(self.X)
+                self.inference(self.X, num_classes)
                 self.loss()
                 self._summary()
                 self.global_step = tf.Variable(0, name='global_step', trainable=False)
-                self.optimizer = tf.train.AdamOptimizer()
+                self.optimizer = tf.train.AdamOptimizer(epsilon=0.1)
                 self.train_op = self.optimizer.minimize(self.total_loss, global_step=self.global_step)
             else:
                 if use_test_queue:
@@ -23,12 +23,12 @@ class CNN(object):
                 else:
                     self.X = tf.placeholder(tf.float32, shape=self.input_shape)
                     self.labels = tf.placeholder(tf.int32, shape=(self.input_shape[0],))
-                self.inference(self.X, keep_prob=1.0)
+                self.inference(self.X, num_classes, keep_prob=1.0)
                 self.loss()
                 self.error()
 
 
-    def inference(self, inputs, keep_prob=0.5):
+    def inference(self, inputs, num_classes, keep_prob=0.5):
         with tf.variable_scope('conv1') as scope:
             kernel = variable_on_cpu('weights',
                                       shape=[5, 5, inputs.shape[-1].value, 256],
@@ -74,10 +74,10 @@ class CNN(object):
         with tf.variable_scope('dropout') as scope:
             dropout = tf.nn.dropout(fc2, keep_prob)
             weights = variable_on_cpu('weights',
-                                       shape=[dropout.shape[1].value, 10],
+                                       shape=[dropout.shape[1].value, num_classes],
                                        initializer=tf.contrib.layers.xavier_initializer())
 
-            biases = variable_on_cpu('biases', [10], tf.constant_initializer(0.0))
+            biases = variable_on_cpu('biases', [num_classes], tf.constant_initializer(0.0))
             logits = tf.matmul(dropout, weights) + biases
 
         self.logits = logits

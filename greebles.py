@@ -11,24 +11,26 @@ import tensorflow as tf
 
 from PIL import Image
 from sklearn.model_selection import train_test_split
+from sklearn.utils import shuffle
 
-def convertPngsToNPY(visualize=False):
+def convertPngsToNPY(n, visualize=False):
     print("Converting pngs to numpy array file...")
     path = os.path.join("data", "greebles")
     path = os.path.join(path, "images/*.png")
     image_paths = glob.glob(path)
     num_images = len(image_paths) if not visualize else 20
     random.shuffle(image_paths)
-    images = np.zeros((num_images, 48, 48, 1))
+    images = np.zeros((num_images, n, n, 1))
     labels = np.zeros((num_images))
 
     for i, image_path in enumerate(image_paths):
         if i == num_images:
             break
         img = Image.open(image_path).convert('L')
-        images[i] = np.array(img).reshape(48, 48, 1)
+        images[i] = np.array(img).reshape(n, n, 1)
         labels[i] = int(re.search('\d+', image_path).group()) - 1
 
+    images, labels = shuffle(images, labels)
     if visualize:
         np.save("data/greebles/vis-images.npy", images)
         np.save("data/greebles/vis-labs.npy", labels)
@@ -87,7 +89,7 @@ def tfrecord():
     write_data_to_tfrecord(is_training=False, chunkify=False)
 
 
-def read_greebles_tfrecord(filenames):
+def read_greebles_tfrecord(filenames, n=96):
     """
     from https://github.com/www0wwwjs1/Matrix-Capsules-EM-Tensorflow/blob/master/data/smallNORB.py
     """
@@ -103,7 +105,7 @@ def read_greebles_tfrecord(filenames):
                                            'img_raw': tf.FixedLenFeature([], tf.string),
                                        })
     img = tf.decode_raw(features['img_raw'], tf.float64)
-    img = tf.reshape(img, [48, 48, 1])
+    img = tf.reshape(img, [n, n, 1])
     img = tf.cast(img, tf.float32)
     label = tf.cast(features['label'], tf.int32)
     return img, label
@@ -131,8 +133,8 @@ def test(is_training=True):
                    for fname in os.listdir(processed_dir)
                    if CHUNK_RE.match(fname)]
     image, label = read_greebles_tfrecord(chunk_files)
-    image = tf.image.random_brightness(image, max_delta=32. / 255.)
-    image = tf.image.random_contrast(image, lower=0.5, upper=1.5)
+    # image = tf.image.random_brightness(image, max_delta=32. / 255.)
+    # image = tf.image.random_contrast(image, lower=0.5, upper=1.5)
 
     image = tf.image.resize_images(image, [48, 48])
 
@@ -145,7 +147,7 @@ def test(is_training=True):
         initializer=tf.constant_initializer(1.0, tf.float32))
     mean, variance = tf.nn.moments(image, [0, 1, 2])
     image = tf.nn.batch_normalization(image, mean, variance, beta, gamma, 0.001)
-    
+
     image = tf.random_crop(image, [32, 32, 1])
     batch_size = 8
     x, y = tf.train.shuffle_batch([image, label], batch_size=batch_size, capacity=batch_size * 64,
@@ -160,7 +162,7 @@ def test(is_training=True):
         coord = tf.train.Coordinator()
         threads = tf.train.start_queue_runners(sess=sess, coord=coord)
 
-        for i in range(2):
+        for i in range(10):
             val, l = sess.run([x, y])
             print(val, l)
 
@@ -172,6 +174,7 @@ def test(is_training=True):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Greebles Data Writer')
+    parser.add_argument('-n', help='image dimensions', dest='n', type=int, default=96) 
     parser.add_argument('-f', '--force', action='store_true') 
     parser.add_argument('-t', '--test', action='store_true') 
     parser.add_argument('-v', '--visualize', action='store_true') 
@@ -185,13 +188,13 @@ if __name__ == '__main__':
     if args.test:
         test()
     elif args.visualize:
-        convertPngsToNPY(visualize=True)
+        convertPngsToNPY(args.n, visualize=True)
     else: 
         if args.force or (not os.path.isfile(train_imgs_file) or \
             not os.path.isfile(train_labs_file) or \
             not os.path.isfile(test_imgs_file) or \
             not os.path.isfile(test_labs_file)):
-            convertPngsToNPY()
+            convertPngsToNPY(args.n)
         for filepath in glob.glob("data/greebles/*.tfrecords"):
             os.remove(filepath)
         tfrecord()

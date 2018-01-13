@@ -110,7 +110,7 @@ def read_norb_tfrecord(filenames):
 
 def load_norb(batch_size, samples_per_epoch=None, is_training=True):
     if is_training:
-        num_train_batches = 24300 * 2 // batch_size
+        num_train_batches = samples_per_epoch // batch_size if samples_per_epoch else 24300 * 2 // batch_size
         # do not provide training or validation data here
         return [], [], [], [], num_train_batches, 0
     else:
@@ -162,7 +162,7 @@ def test(is_training=True):
         coord = tf.train.Coordinator()
         threads = tf.train.start_queue_runners(sess=sess, coord=coord)
 
-        for i in range(2):
+        for i in range(10):
             val, l = sess.run([x, y])
             print(val, l)
 
