@@ -112,9 +112,11 @@ class resnet(object):
 
     # The final fully-connected layer, for which the output is the logits for classification.
     def dense_layer(self, x, x_size, num_classes):
-        weights = weight_variable([x_size, num_classes])
-        biases = bias_variable([num_classes])
-        dense = tf.matmul(x, weights) + biases
+        kernel = variable_on_cpu('weights',
+                          shape=[x_size, num_classes],
+                          initializer=tf.contrib.layers.xavier_initializer())
+        biases = variable_on_cpu('biases', [num_classes], tf.constant_initializer(0.0))
+        dense = tf.matmul(x, kernel) + biases
 
         return dense
 
