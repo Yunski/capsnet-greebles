@@ -68,8 +68,6 @@ def write_data_to_tfrecord(is_training=True, chunkify=False):
     """
     kind = "train" if is_training else "test"
     print("Start writing greebles {} data.".format(kind))
-    total_num_images = 11000 if is_training else 5000
-    CHUNK = total_num_images // 10  # create 10 chunks
 
     start = time.time()
     if is_training:
@@ -78,6 +76,9 @@ def write_data_to_tfrecord(is_training=True, chunkify=False):
     else:
         images = np.load("data/greebles/test-images.npy")
         labels = np.load("data/greebles/test-labs.npy")
+
+    total_num_images = len(images)
+    CHUNK = total_num_images // 10  # create 10 chunks
 
     for j in range(total_num_images // CHUNK if chunkify else 1):
         num_images = CHUNK if chunkify else total_num_images
@@ -131,11 +132,11 @@ def read_greebles_tfrecord(filenames, n=96):
 
 def load_greebles(batch_size, samples_per_epoch=None, is_training=True):
     if is_training:
-        num_train_batches = samples_per_epoch // batch_size if samples_per_epoch else 11000 // batch_size
+        num_train_batches = samples_per_epoch // batch_size if samples_per_epoch else 16000 // batch_size
         # do not provide training or validation data here
         return [], [], [], [], num_train_batches, 0
     else:
-        num_test_batches = 5000 // batch_size
+        num_test_batches = 8000 // batch_size
         # do not provide test data here
         return [], [], num_test_batches
 
