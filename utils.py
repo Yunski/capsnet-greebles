@@ -80,11 +80,10 @@ def get_test_batch(dataset, batch_size, num_threads, min_after_dequeue=5000, sam
     else:
         raise ValueError("{} is not an available dataset".format(dataset))
 
-    X, Y = tf.train.shuffle_batch(data_queues, num_threads=num_threads,
-                                  batch_size=batch_size,
-                                  capacity=min_after_dequeue + (num_threads + 1) * batch_size,
-                                  min_after_dequeue=min_after_dequeue,
-                                  allow_smaller_final_batch=False)
+    X, Y = tf.train.batch(data_queues, num_threads=num_threads,
+                          batch_size=batch_size,
+                          capacity=min_after_dequeue + (num_threads + 1) * batch_size,
+                          allow_smaller_final_batch=False)
 
     return X, Y
 
