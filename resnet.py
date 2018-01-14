@@ -71,7 +71,7 @@ class resnet(object):
                                   shape=[filter_height, filter_width, filter_depth, num_filters],
                                   initializer=tf.contrib.layers.xavier_initializer())
         biases = variable_on_cpu('biases', [num_filters], tf.constant_initializer(0.0))
-        conv_first_step = tf.nn.conv2d(inputs, kernel, strides=[1, stride, stride, 1], padding='SAME')
+        conv_first_step = tf.nn.conv2d(x, kernel, strides=[1, stride, stride, 1], padding='SAME')
         conv = tf.nn.bias_add(conv_first_step, biases)
 
         # Batch normalization right after convolution (before any activation).
