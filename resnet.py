@@ -39,7 +39,7 @@ class resnet(object):
             conv_0 = self.conv_layer(inputs, filter_size, filter_size, inputs.shape[-1], num_filters, stride)
             activation_0 = tf.nn.relu(conv_0, name=scope.name)
         with tf.variable_scope('pool0') as scope:
-            pool_0 = tf.nn.max_pool(activation_0, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='SAME')
+            pool_0 = tf.nn.max_pool(activation_0, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='SAME', name=scope.name)
             nodes.append(pool_0)
 
         # Begin residual layers. In ResNet, we have a num_layers successive residual layers before downsampling occurs.
@@ -48,7 +48,7 @@ class resnet(object):
         num_layers = 3
         num_filters = 64
         for i in range(num_layers):
-            with tf.variable_scope('conv%d' % (i+1)) as scope:
+            with tf.variable_scope('conv1_%d' % (i)) as scope:
                 res = self.res_layer(nodes[-1], num_filters)
                 nodes.append(res)
 
@@ -96,15 +96,17 @@ class resnet(object):
         stride = 1
 
         # Convolutional layer 1.
-        conv_1 = self.conv_layer(x, filter_size, filter_size, x_depth, num_filters, stride)
-        # ReLU activation.
-        activation_1 = tf.nn.relu(conv_1)
+        with tf.variable_scope('conv1') as scope:
+            conv_1 = self.conv_layer(x, filter_size, filter_size, x_depth, num_filters, stride)
+            # ReLU activation.
+            activation_1 = tf.nn.relu(conv_1)
 
         # Convolutional layer 2.
-        conv_2 = self.conv_layer(activation_1, filter_size, filter_size, num_filters, num_filters, stride)
-        # Add initial input through shortcut connection (defined as F + x in the paper) before activation.
-        res = tf.add(conv_2, x)
-        activation_2 = tf.nn.relu(res)
+        with tf.variable_scope('conv2') as scope:
+            conv_2 = self.conv_layer(activation_1, filter_size, filter_size, num_filters, num_filters, stride)
+            # Add initial input through shortcut connection (defined as F + x in the paper) before activation.
+            res = tf.add(conv_2, x)
+            activation_2 = tf.nn.relu(res)
 
         return activation_2
 
