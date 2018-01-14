@@ -215,6 +215,8 @@ if __name__ == '__main__':
             not os.path.isfile(train_labs_file) or \
             not os.path.isfile(test_imgs_file) or \
             not os.path.isfile(test_labs_file)):
+            for filepath in glob.glob("data/greebles/*.npy"):
+                os.remove(filepath)
             convertPngsToNPY(args.n)
         for filepath in glob.glob("data/greebles/*.tfrecords"):
             os.remove(filepath)

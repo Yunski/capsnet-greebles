@@ -4,7 +4,7 @@ import numpy as np
 import tensorflow as tf
 
 from mnist import load_mnist
-from affnist import load_affnist
+from affnist import load_affnist, read_affnist_tfrecord
 from smallnorb import load_norb, read_norb_tfrecord
 from greebles import load_greebles, read_greebles_tfrecord
 
@@ -14,7 +14,7 @@ def load_data(dataset, batch_size, is_training=True, samples_per_epoch=None, use
     if dataset == 'mnist':
         return load_mnist(batch_size, samples_per_epoch, is_training, use_val_only)
     elif dataset == 'affnist':
-        return load_affnist(batch_size, samples_per_epoch, is_training, use_val_only)
+        return load_affnist(batch_size, samples_per_epoch, is_training)
     elif dataset == 'smallnorb':
         return load_norb(batch_size, samples_per_epoch, is_training)
     elif dataset == 'greebles':
@@ -29,22 +29,24 @@ def get_train_batch(dataset, batch_size, num_threads, min_after_dequeue=5000, sa
     if dataset == 'mnist':
         X_train, X_val, Y_train, Y_val, num_train_batches, num_val_batches = load_mnist(batch_size, samples_per_epoch=samples_per_epoch)
         data_queues = tf.train.slice_input_producer([X_train, Y_train])
-    elif dataset == 'affnist':
-        X_train, X_val, Y_train, Y_val, num_train_batches, num_val_batches = load_affnist(batch_size, samples_per_epoch=samples_per_epoch)
-        data_queues = tf.train.slice_input_producer([X_train, Y_train])
-    elif dataset == 'smallnorb' or dataset == 'greebles':
+    elif dataset in set(['affnist', 'smallnorb', 'greebles']):
         CHUNK_RE = re.compile(r"train-\d+\.tfrecords")
-        data_dir = "data/smallnorb" if dataset == 'smallnorb' else "data/greebles"
+        data_dir = "data/{}".format(dataset)
         chunk_files = [os.path.join(data_dir, fname) for fname in os.listdir(data_dir) if CHUNK_RE.match(fname)]
-        X_train, Y_train = read_norb_tfrecord(chunk_files) if dataset == 'smallnorb' else read_greebles_tfrecord(chunk_files)
+        if dataset == 'affnist':
+            X_train, Y_train = read_affnist_tfrecord(chunk_files)
+        elif dataset == 'smallnorb':
+            X_train, Y_train = read_norb_tfrecord(chunk_files)
+        else:
+            X_train, Y_train = read_greebles_tfrecord(chunk_files)
         
         if dataset == 'smallnorb':
             X_train = tf.image.random_brightness(X_train, max_delta=32. / 255.)
             X_train = tf.image.random_contrast(X_train, lower=0.5, upper=1.5)
-
-        X_train = tf.image.resize_images(X_train, [48, 48])
+        if dataset != 'affnist':
+            X_train = tf.image.resize_images(X_train, [48, 48])
+            X_train = tf.random_crop(X_train, [32, 32, 1])
         X_train = X_train / 255
-        X_train = tf.random_crop(X_train, [32, 32, 1])
         data_queues = [X_train, Y_train]
     else:
         raise ValueError("{} is not an available dataset".format(dataset))
@@ -58,14 +60,22 @@ def get_train_batch(dataset, batch_size, num_threads, min_after_dequeue=5000, sa
 
 
 def get_test_batch(dataset, batch_size, num_threads, min_after_dequeue=5000, samples_per_epoch=None):
-    if dataset == 'smallnorb' or dataset == 'greebles':
+    if dataset in set(['affnist', 'smallnorb', 'greebles']):
         CHUNK_RE = re.compile(r"test-\d+\.tfrecords")
-        data_dir = "data/smallnorb" if dataset == 'smallnorb' else "data/greebles"
+        data_dir = "data/{}".format(dataset)
         chunk_files = [os.path.join(data_dir, fname) for fname in os.listdir(data_dir) if CHUNK_RE.match(fname)]
-        X_test, Y_test = read_norb_tfrecord(chunk_files) if dataset == 'smallnorb' else read_greebles_tfrecord(chunk_files)
-        X_test = tf.image.resize_images(X_test, [48, 48])
+
+        if dataset == 'affnist':
+            X_test, Y_test = read_affnist_tfrecord(chunk_files)
+        elif dataset == 'smallnorb':
+            X_test, Y_test = read_norb_tfrecord(chunk_files)
+        else:
+            X_test, Y_test = read_greebles_tfrecord(chunk_files)
+ 
+        if dataset != 'affnist':
+            X_test = tf.image.resize_images(X_test, [48, 48])
+            X_test = tf.slice(X_test, [8, 8, 0], [32, 32, 1])
         X_test = X_test / 255
-        X_test = tf.slice(X_test, [8, 8, 0], [32, 32, 1])
         data_queues = [X_test, Y_test]
     else:
         raise ValueError("{} is not an available dataset".format(dataset))
@@ -79,7 +89,6 @@ def get_test_batch(dataset, batch_size, num_threads, min_after_dequeue=5000, sam
     return X, Y
 
 
-
 def get_dataset_values(dataset, batch_size, is_training=True):
     if dataset == 'mnist':
         input_shape = (batch_size, 28, 28, 1)
@@ -88,7 +97,7 @@ def get_dataset_values(dataset, batch_size, is_training=True):
     elif dataset == 'affnist':
         input_shape = (batch_size, 40, 40, 1)
         num_classes = 10
-        use_test_queue = False
+        use_test_queue = True
     elif dataset == 'smallnorb':
         input_shape = (batch_size, 32, 32, 1)
         num_classes = 5
@@ -103,6 +112,7 @@ def get_dataset_values(dataset, batch_size, is_training=True):
         return input_shape, num_classes
     else:
         return input_shape, num_classes, use_test_queue
+
 
 def variable_on_cpu(name, shape, initializer):
     with tf.device('/cpu:0'):
