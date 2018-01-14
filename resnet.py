@@ -45,14 +45,39 @@ class resnet(object):
         # Begin residual layers. In ResNet, we have a num_layers successive residual layers before downsampling occurs.
 
         # Set of residual layers #1.
-        num_layers = 3
+        num_layers = 6
         num_filters = 64
         for i in range(num_layers):
-            with tf.variable_scope('conv1_%d' % (i)) as scope:
+            with tf.variable_scope('res1_%d' % (i)) as scope:
                 res = self.res_layer(nodes[-1], num_filters)
                 nodes.append(res)
 
-        # End of residual layers.
+        # In-between two sets of residual layers, we must maxpool.
+        with tf.variable_scope('pool1') as scope:
+            pool_1 = tf.nn.max_pool(nodes[-1], ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='SAME', name=scope.name)
+            nodes.append(pool_1)
+
+        # Set of residual layers #2.
+        num_layers = 8
+        num_filters = 128
+        for i in range(num_layers):
+            with tf.variable_scope('res2_%d' % (i)) as scope:
+                res = self.res_layer(nodes[-1], num_filters)
+                nodes.append(res)
+
+        with tf.variable_scope('pool2') as scope:
+            pool_2 = tf.nn.max_pool(nodes[-1], ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='SAME', name=scope.name)
+            nodes.append(pool_2)
+
+        # Set of residual layers #3.
+        num_layers = 12
+        num_filters = 256
+        for i in range(num_layers):
+            with tf.variable_scope('res3_%d' % (i)) as scope:
+                res = self.res_layer(nodes[-1], num_filters)
+                nodes.append(res)
+
+        # End of residual layers. As per the paper, no maxpooling or dropout occurs at the end of the final convolution.
 
         # Global average pooling.
         avg_pool = tf.reduce_mean(nodes[-1], [1, 2])
@@ -105,7 +130,13 @@ class resnet(object):
         with tf.variable_scope('conv2') as scope:
             conv_2 = self.conv_layer(activation_1, filter_size, filter_size, num_filters, num_filters, stride)
             # Add initial input through shortcut connection (defined as F + x in the paper) before activation.
-            res = tf.add(conv_2, x)
+            inpt = x
+            # Note: When changing residual layers, F and x will have mismatched dimensions. We must increase the dimensionality
+            # of x to match F for the addition. We go with Option A from the ResNet paper and simply zero-pad x.
+            if x_depth != num_filters:
+                # Only the depth will be mismatched, so simply pad in that dimension.
+                inpt = tf.pad(x, [[0, 0], [0, 0], [0, 0], [0, num_filters - x_depth]], constant_values=0)
+            res = tf.add(conv_2, inpt)
             activation_2 = tf.nn.relu(res)
 
         return activation_2
