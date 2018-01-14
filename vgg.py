@@ -1,14 +1,17 @@
-# smaller VGG-like CNN for training bigger VGG-like model
+# VGG-like CNN
+#
+# Can't use original VGG because
+# (1) images too small 
+# (2) deeper networks difficult to train without residual connections
 # 
 # Architecture:
-# Block 1: one 3x3 convolution (64 channels), one 2x2 max-pool
-# Block 2: one 3x3 convolution (128 channels), one 2x2 max-pool
-# Block 3: one 3x3 convolution (256 channels), one 2x2 max-pool
-# Block 4: one 3x3 convolution (512 channels), one 2x2 max-pool
+# Block 1: two 3x3 convolutions (64 channels), one 2x2 max-pool
+# Block 2: two 3x3 convolutions (128 channels), one 2x2 max-pool
+# Block 3: two 3x3 convolutions (256 channels), one 2x2 max-pool
 # two fully-connected layers (one with 512 channels, one with 10 channels)
 # softmax layer
 #
-# total: 4 convolutional layers, 4 max-pool layers, 2 fully-connected layers
+# total: 6 convolutional layers, 3 max-pool layers, 2 fully-connected layers
 
 
 import tensorflow as tf
@@ -67,7 +70,7 @@ class VGGNet(object):
             dropout = tf.nn.dropout(x, keep_prob)
             return dropout
             
-        # block 1: three 3x3 conv filters, one 2x2 max-pool, 64 channels
+        # block 1: two 3x3 conv filters, one 2x2 max-pool, 64 channels
         with tf.variable_scope('conv1') as scope:
             conv1 = conv_3x3_with_relu(inputs, 64)
         
@@ -77,7 +80,7 @@ class VGGNet(object):
         with tf.name_scope('pool1') as scope:
             pool1 = pool_2x2(conv2)
         
-        # block 2: three 3x3 conv filters, one 2x2 max-pool, 128 channels
+        # block 2: two 3x3 conv filters, one 2x2 max-pool, 128 channels
         with tf.variable_scope('conv3') as scope:
             conv3 = conv_3x3_with_relu(pool1, 128)
         
@@ -87,35 +90,16 @@ class VGGNet(object):
         with tf.name_scope('pool2') as scope:
             pool2 = pool_2x2(conv4)
         
-        # block 3: three 3x3 conv filters, one 2x2 max-pool, 256 channels
+        # block 3: two 3x3 conv filters, one 2x2 max-pool, 256 channels
         with tf.variable_scope('conv5') as scope:
             conv5 = conv_3x3_with_relu(pool2, 256)
         
         with tf.variable_scope('conv6') as scope:
             conv6 = conv_3x3_with_relu(conv5, 256)
-        	
-        '''
-        with tf.variable_scope('conv7') as scope:
-            conv7 = conv_3x3_with_relu(conv6, 256)
-        '''
-
+        
         with tf.name_scope('pool3') as scope:
             pool3 = pool_2x2(conv6)
 
-        '''
-        # block 4: three 3x3 conv filters, one 2x2 max-pool, 512 channels
-        with tf.variable_scope('conv8') as scope:
-            conv8 = conv_3x3_with_relu(pool3, 512)
-        
-        with tf.variable_scope('conv9') as scope:
-            conv9 = conv_3x3_with_relu(conv8, 512)
-
-        with tf.variable_scope('conv10') as scope:
-            conv10 = conv_3x3_with_relu(conv9, 512)
-        
-        with tf.name_scope('pool3') as scope:
-            pool4 = pool_2x2(conv8)
-        '''
         # two fully-connected layers, with dropout after first
         with tf.variable_scope('fc1') as scope:
             reshape = tf.reshape(pool3, [pool3.shape[0].value, -1])
@@ -135,13 +119,13 @@ class VGGNet(object):
 
     def loss(self):
         # regularization code adapted from https://stackoverflow.com/a/38466108
-        beta = 0.01
-        regularizer = tf.add_n([tf.nn.l2_loss(v) for v in tf.trainable_variables() if "biases" not in v.name])
+        # beta = 0.01
+        # regularizer = tf.add_n([tf.nn.l2_loss(v) for v in tf.trainable_variables() if "biases" not in v.name])
         self.total_loss = tf.reduce_sum(
             tf.nn.sparse_softmax_cross_entropy_with_logits(
                 logits=self.logits,
                 labels=self.labels
-            )) + beta * regularizer
+            )) # + beta * regularizer
 
     def error(self):
         self.predictions = tf.to_int32(tf.argmax(self.logits, axis=1))
