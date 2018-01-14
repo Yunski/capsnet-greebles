@@ -30,7 +30,7 @@ def main(_):
         os.mkdir(logdir)
 
     sv = tf.train.Supervisor(graph=model.graph, logdir=logdir, save_model_secs=0)
-    
+
     tf.logging.info("Initialize training...")
     train(model, sv, dataset)
     tf.logging.info("Finished training.")
