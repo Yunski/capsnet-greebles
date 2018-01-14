@@ -65,6 +65,18 @@ class resnet(object):
                 res = self.res_layer(nodes[-1], num_filters)
                 nodes.append(res)
 
+        with tf.variable_scope('pool2') as scope:
+            pool_2 = tf.nn.max_pool(nodes[-1], ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='SAME', name=scope.name)
+            nodes.append(pool_2)
+
+        # Set of residual layers #3.
+        num_layers = 12
+        num_filters = 256
+        for i in range(num_layers):
+            with tf.variable_scope('res3_%d' % (i)) as scope:
+                res = self.res_layer(nodes[-1], num_filters)
+                nodes.append(res)
+
         # End of residual layers. As per the paper, no maxpooling or dropout occurs at the end of the final convolution.
 
         # Global average pooling.
