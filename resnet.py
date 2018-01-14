@@ -65,7 +65,7 @@ class resnet(object):
 
 
     # A convolutional layer with batch normalization, but without pooling or activation.
-    def conv_layer(x, filter_height, filter_width, filter_depth, num_filters, stride):
+    def conv_layer(self, x, filter_height, filter_width, filter_depth, num_filters, stride):
         # Convolution.
         kernel = variable_on_cpu('weights',
                                   shape=[filter_height, filter_width, filter_depth, num_filters],
@@ -85,7 +85,7 @@ class resnet(object):
         return bn
 
     # A residual layer, as implemented in the ResNet paper.
-    def res_layer(x, num_filters):
+    def res_layer(self, x, num_filters):
         # Input dimensions.
         x_height = x.get_shape().as_list()[1]
         x_width = x.get_shape().as_list()[2]
@@ -109,7 +109,7 @@ class resnet(object):
         return activation_2
 
     # The final fully-connected layer, for which the output is the logits for classification.
-    def dense_layer(x, x_size, num_classes):
+    def dense_layer(self, x, x_size, num_classes):
         weights = weight_variable([x_size, num_classes])
         biases = bias_variable([num_classes])
         dense = tf.matmul(x, weights) + biases
