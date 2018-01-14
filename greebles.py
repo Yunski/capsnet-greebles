@@ -141,7 +141,7 @@ def load_greebles(batch_size, samples_per_epoch=None, is_training=True):
         return [], [], num_test_batches
 
 
-def test(is_training=True):
+def test(is_training=True, num_images=10):
     if is_training:
         CHUNK_RE = re.compile(r"train-\d+\.tfrecords")
     else:
@@ -183,9 +183,9 @@ def test(is_training=True):
         coord = tf.train.Coordinator()
         threads = tf.train.start_queue_runners(sess=sess, coord=coord)
 
-        for i in range(10):
+        for i in range(num_images):
             val, l = sess.run([x, y])
-            print(val, l)
+            print(val, l, np.amax(val))
 
         coord.request_stop()
         coord.join(threads)
