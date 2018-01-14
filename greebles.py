@@ -138,6 +138,7 @@ def test(is_training=True):
 
     image = tf.image.resize_images(image, [48, 48])
 
+    """
     params_shape = [image.get_shape()[-1]]
     beta = tf.get_variable(
         'beta', params_shape, tf.float32,
@@ -147,6 +148,7 @@ def test(is_training=True):
         initializer=tf.constant_initializer(1.0, tf.float32))
     mean, variance = tf.nn.moments(image, [0, 1, 2])
     image = tf.nn.batch_normalization(image, mean, variance, beta, gamma, 0.001)
+    """
 
     image = tf.random_crop(image, [32, 32, 1])
     batch_size = 8

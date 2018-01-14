@@ -41,18 +41,9 @@ def get_train_batch(dataset, batch_size, num_threads, min_after_dequeue=5000, sa
         if dataset == 'smallnorb':
             X_train = tf.image.random_brightness(X_train, max_delta=32. / 255.)
             X_train = tf.image.random_contrast(X_train, lower=0.5, upper=1.5)
-        X_train = tf.image.resize_images(X_train, [48, 48])
-            
-        params_shape = [X_train.get_shape()[-1]]
-        beta = tf.get_variable(
-            "beta", params_shape, tf.float32,
-            initializer=tf.constant_initializer(0.0, tf.float32))
-        gamma = tf.get_variable(
-            "gamma", params_shape, tf.float32,
-            initializer=tf.constant_initializer(1.0, tf.float32))
-        mean, variance = tf.nn.moments(X_train, [0, 1, 2])
-        X_train = tf.nn.batch_normalization(X_train, mean, variance, beta, gamma, 0.001)
 
+        X_train = tf.image.resize_images(X_train, [48, 48])
+        X_train = X_train / 255
         X_train = tf.random_crop(X_train, [32, 32, 1])
         data_queues = [X_train, Y_train]
     else:
@@ -73,17 +64,7 @@ def get_test_batch(dataset, batch_size, num_threads, min_after_dequeue=5000, sam
         chunk_files = [os.path.join(data_dir, fname) for fname in os.listdir(data_dir) if CHUNK_RE.match(fname)]
         X_test, Y_test = read_norb_tfrecord(chunk_files) if dataset == 'smallnorb' else read_greebles_tfrecord(chunk_files)
         X_test = tf.image.resize_images(X_test, [48, 48])
-
-        params_shape = [X_test.get_shape()[-1]]
-        beta = tf.get_variable(
-            'beta', params_shape, tf.float32,
-            initializer=tf.constant_initializer(0.0, tf.float32))
-        gamma = tf.get_variable(
-            'gamma', params_shape, tf.float32,
-            initializer=tf.constant_initializer(1.0, tf.float32))
-        mean, variance = tf.nn.moments(X_test, [0, 1, 2])
-        X_test = tf.nn.batch_normalization(X_test, mean, variance, beta, gamma, 0.001)
-
+        X_test = X_test / 255
         X_test = tf.slice(X_test, [8, 8, 0], [32, 32, 1])
         data_queues = [X_test, Y_test]
     else:
