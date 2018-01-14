@@ -13,7 +13,7 @@ flags.DEFINE_integer('val_sum_freq', 500, "the frequency of saving validation su
 flags.DEFINE_integer('save_freq', 5, "the frequency of saving model(epoch)")
 
 
-flags.DEFINE_string('dataset', 'affnist', "the dataset")
+flags.DEFINE_string('dataset', 'smallnorb', "the dataset")
 flags.DEFINE_string('logdir', 'logs', "logs directory")
 flags.DEFINE_string('summary_dir', 'summary', "path for saving model summary")
 flags.DEFINE_string('dataset_file', 'datasets.yml', "file containing dataset urls")
