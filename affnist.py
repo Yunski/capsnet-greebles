@@ -112,14 +112,14 @@ def tfrecord():
     write_data_to_tfrecord(is_training=False, chunkify=False)
 
 
-def read_affnist_tfrecord(filenames):
+def read_affnist_tfrecord(filenames, num_epochs=None):
     """
     from https://github.com/www0wwwjs1/Matrix-Capsules-EM-Tensorflow/blob/master/data/smallNORB.py
     """
 
     assert isinstance(filenames, list)
 
-    filename_queue = tf.train.string_input_producer(filenames, num_epochs=None)
+    filename_queue = tf.train.string_input_producer(filenames, num_epochs=num_epochs)
     reader = tf.TFRecordReader()
     _, serialized_example = reader.read(filename_queue)
     features = tf.parse_single_example(serialized_example,
@@ -148,7 +148,7 @@ def load_affnist(batch_size, samples_per_epoch=None, is_training=True):
         return [], val_images, [], val_labels, num_train_batches, num_val_batches 
     else:
         test_labels = np.load("data/affnist/test-labs.npy")
-        num_test_batches = test_labels // batch_size
+        num_test_batches = len(test_labels) // batch_size
         # do not provide test data here
         return [], [], num_test_batches
 

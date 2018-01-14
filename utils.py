@@ -66,11 +66,11 @@ def get_test_batch(dataset, batch_size, num_threads, min_after_dequeue=5000, sam
         chunk_files = [os.path.join(data_dir, fname) for fname in os.listdir(data_dir) if CHUNK_RE.match(fname)]
 
         if dataset == 'affnist':
-            X_test, Y_test = read_affnist_tfrecord(chunk_files)
+            X_test, Y_test = read_affnist_tfrecord(chunk_files, num_epochs=1)
         elif dataset == 'smallnorb':
-            X_test, Y_test = read_norb_tfrecord(chunk_files)
+            X_test, Y_test = read_norb_tfrecord(chunk_files, num_epochs=1)
         else:
-            X_test, Y_test = read_greebles_tfrecord(chunk_files)
+            X_test, Y_test = read_greebles_tfrecord(chunk_files, num_epochs=1)
  
         if dataset != 'affnist':
             X_test = tf.image.resize_images(X_test, [48, 48])
