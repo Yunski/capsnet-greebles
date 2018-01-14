@@ -137,6 +137,7 @@ def test(is_training=True):
     image = tf.image.resize_images(image, [48, 48])
 
     """Batch Norm"""
+    """
     params_shape = [image.get_shape()[-1]]
     beta = tf.get_variable(
         'beta', params_shape, tf.float32,
@@ -146,9 +147,9 @@ def test(is_training=True):
         initializer=tf.constant_initializer(1.0, tf.float32))
     mean, variance = tf.nn.moments(image, [0, 1, 2])
     image = tf.nn.batch_normalization(image, mean, variance, beta, gamma, 0.001)
-
+    """
     image = tf.random_crop(image, [32, 32, 1])
-
+    image = image / 255
     batch_size = 8
     x, y = tf.train.shuffle_batch([image, label], batch_size=batch_size, capacity=batch_size * 64,
                                   min_after_dequeue=batch_size * 32, allow_smaller_final_batch=False)
