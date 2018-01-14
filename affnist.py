@@ -32,6 +32,7 @@ def convertPngsToNPY(visualize=False):
               
     val_images = val_data['affNISTdata']['image'].transpose()
     val_images = val_images.reshape((val_images.shape[0], 40, 40, 1)).astype(np.float64)
+    val_images = np.array([random_shift(image) for image in val_images])
     val_labels = val_data['affNISTdata']['label_int']
     val_labels = val_labels.reshape((val_labels.shape[0])).astype(np.int64)
 
