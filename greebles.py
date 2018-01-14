@@ -16,31 +16,49 @@ from sklearn.utils import shuffle
 def convertPngsToNPY(n, visualize=False):
     print("Converting pngs to numpy array file...")
     path = os.path.join("data", "greebles")
-    path = os.path.join(path, "images/*.png")
-    image_paths = glob.glob(path)
-    num_images = len(image_paths) if not visualize else 20
-    random.shuffle(image_paths)
-    images = np.zeros((num_images, n, n, 1))
-    labels = np.zeros((num_images))
+    train_path = os.path.join(path, "train/*.png")
+    test_path = os.path.join(path, "test/*.png")
+    train_image_paths = glob.glob(train_path)
+    test_image_paths = glob.glob(test_path)
+    num_train_images = len(train_image_paths) if not visualize else 20
+    num_test_images = len(test_image_paths) if not visualize else 20
+    random.shuffle(train_image_paths)
+    random.shuffle(test_image_paths)
 
-    for i, image_path in enumerate(image_paths):
-        if i == num_images:
+    train_images = np.zeros((num_train_images, n, n, 1))
+    train_labels = np.zeros((num_train_images))
+
+    test_images = np.zeros((num_test_images, n, n, 1))
+    test_labels = np.zeros((num_test_images))
+
+    for i, image_path in enumerate(train_image_paths):
+        if i == num_train_images:
             break
         img = Image.open(image_path).convert('L')
-        images[i] = np.array(img).reshape(n, n, 1)
-        labels[i] = int(re.search('\d+', image_path).group()) - 1
+        train_images[i] = np.array(img).reshape(n, n, 1)
+        train_labels[i] = int(re.search('\d+', image_path).group()) - 1
 
-    images, labels = shuffle(images, labels)
+    for i, image_path in enumerate(test_image_paths):
+        if i == num_test_images:
+            break
+        img = Image.open(image_path).convert('L')
+        test_images[i] = np.array(img).reshape(n, n, 1)
+        test_labels[i] = int(re.search('\d+', image_path).group()) - 1
+
+    train_images, train_labels = shuffle(train_images, train_labels)
+    test_images, test_labels = shuffle(test_images, test_labels)
+
     if visualize:
-        np.save("data/greebles/vis-images.npy", images)
-        np.save("data/greebles/vis-labs.npy", labels)
+        np.save("data/greebles/vis-train-images.npy", train_images)
+        np.save("data/greebles/vis-train-labs.npy", train_labels)
+        np.save("data/greebles/vis-test-images.npy", test_images)
+        np.save("data/greebles/vis-test-labs.npy", test_labels)
         print("Successfully saved visualization arrays.")
     else:
-        X_train, X_test, Y_train, Y_test = train_test_split(images, labels, test_size=5000)
-        np.save("data/greebles/train-images.npy", X_train)
-        np.save("data/greebles/train-labs.npy", Y_train)
-        np.save("data/greebles/test-images.npy", X_test)
-        np.save("data/greebles/test-labs.npy", Y_test)
+        np.save("data/greebles/train-images.npy", train_images)
+        np.save("data/greebles/train-labs.npy", train_labels)
+        np.save("data/greebles/test-images.npy", test_images)
+        np.save("data/greebles/test-labs.npy", test_labels)
         print("Successfully converted pngs.")
 
 
