@@ -136,7 +136,7 @@ class VGGNet(object):
     def loss(self):
         # regularization code adapted from https://stackoverflow.com/a/38466108
         beta = 0.01
-        regularizer = tf.addn_([tf.nn.l2_loss(v) for v in tf.trainable_variables() if "biases" not in v.name])
+        regularizer = tf.add_n([tf.nn.l2_loss(v) for v in tf.trainable_variables() if "biases" not in v.name])
         self.total_loss = tf.reduce_sum(
             tf.nn.sparse_softmax_cross_entropy_with_logits(
                 logits=self.logits,
