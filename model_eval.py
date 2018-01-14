@@ -26,6 +26,7 @@ def train(model, supervisor, dataset):
             progress_bar = tqdm(range(num_train_batches), total=num_train_batches, ncols=70, leave=False, unit='b')
             epoch_train_err = 0
             epoch_val_err = 0
+            epoch_loss = 0
             for step in progress_bar:
                 global_step = epoch * num_train_batches + step
                 train_err = 0
@@ -36,26 +37,16 @@ def train(model, supervisor, dataset):
                                                                 model.train_summary])
                     supervisor.summary_writer.add_summary(summary_str, global_step)
 
-                    fd_loss.write(str(global_step) + ',' + str(loss) + "\n")
+                    fd_loss.write("{},{:.4f}\n".format(global_step, epoch_loss))
                     fd_loss.flush()
-                    fd_train_err.write(str(global_step) + ',' + str(train_err) + "\n")
+                    fd_train_err.write("{},{:.4f}\n".format(global_step, epoch_train_err))
                     fd_train_err.flush()
                 else:
-                    _, train_err = sess.run([model.train_op, model.error_rate])
+                    _, loss, train_err = sess.run([model.train_op, model.total_loss, model.error_rate])
 
+                epoch_loss = (epoch_loss * step + loss) / (step + 1)
                 epoch_train_err = (epoch_train_err * step + train_err) / (step + 1)
                 progress_bar.set_description("\rtrain_err: {:.4f} - train_acc: {:.4f}".format(epoch_train_err, 1 - epoch_train_err))
-
-                if num_val_batches > 0 and cfg.val_sum_freq != 0 and (global_step) % cfg.val_sum_freq == 0:
-                    val_err = 0
-                    for i in range(num_val_batches):
-                        start = i * cfg.batch_size
-                        end = start + cfg.batch_size
-                        err = sess.run(model.error_rate, {model.X: X_val[start:end], model.labels: Y_val[start:end]})
-                        val_err += err
-                    val_err = val_err / num_val_batches
-                    fd_val_err.write(str(global_step) + ',' + str(val_err) + '\n')
-                    fd_val_err.flush()
 
             progress_bar = tqdm(range(num_val_batches), total=num_val_batches, ncols=70, leave=False, unit='b')
             for step in progress_bar:
@@ -64,6 +55,9 @@ def train(model, supervisor, dataset):
                 err = sess.run(model.error_rate, {model.X: X_val[start:end], model.labels: Y_val[start:end]})
                 epoch_val_err = (epoch_val_err * step + err) / (step + 1)
                 progress_bar.set_description("\rval_err: {:.4f} - val_acc: {:.4f}".format(epoch_val_err, 1 - epoch_val_err))
+
+            fd_val_err.write("{},{:.4f}\n".format(epoch, epoch_val_err))
+            fd_val_err.flush()
 
             sys.stdout.write("train_err: {:.4f} - train_acc: {:.4f}".format(epoch_train_err, 1 - epoch_train_err))
             if num_val_batches > 0:
@@ -103,7 +97,7 @@ def evaluate(model, supervisor, dataset):
             progress_bar.set_description("\r>> test_err: {:.4f} - test_acc: {:.4f}".format(test_err, 1 - test_err))
         sys.stdout.write("Final - test_err: {:.4f} - test_acc: {:.4f}\n".format(test_err, 1 - test_err))
         sys.stdout.flush()
-        fd_test_err.write(str(test_err) + "\n")
+        fd_test_err.write("{:.4f}\n".format(test_err))
         fd_test_err.close()
 
 
@@ -133,7 +127,7 @@ def saver(summary_dir, model, dataset, is_training=True):
         fd_loss = open(loss, 'w')
         fd_loss.write('step,loss\n')
         fd_val_err = open(val_err, 'w')
-        fd_val_err.write('step,val_err\n')
+        fd_val_err.write('epoch,val_err\n')
         return fd_train_err, fd_loss, fd_val_err
     else:
         test_err = summary_dir + '/test_err.csv'
