@@ -1,62 +1,68 @@
 import argparse
+import glob
 import os
+import random
+import re
+import sys
 import re
 import time
 import numpy as np
 import tensorflow as tf
-import matplotlib.pyplot as plt
 
-np.random.seed(10234)
+from PIL import Image
+from sklearn.model_selection import train_test_split
+from sklearn.utils import shuffle
 
-def plot_imgs(inputs, labels):
-    """
-    Adapted from https://github.com/www0wwwjs1/Matrix-Capsules-EM-Tensorflow/blob/master/data/smallNORB.py
-    """
-    fig = plt.figure()
-    plt.axis('off')
-    r = np.floor(np.sqrt(len(inputs))).astype(int)
-    for i in range(r**2):
-        size = int(np.sqrt(inputs[i].shape[0]))
-        sample = inputs[i].flatten().reshape(size, size)
-        a = fig.add_subplot(r, r, i + 1)
-        a.set_title(labels[i])
-        a.axis('off')
-        a.imshow(sample, cmap='gray')
-    plt.show()
+def convertPngsToNPY(n, visualize=False):
+    print("Converting pngs to numpy array file...")
+    path = os.path.join("data", "greebles")
+    path = os.path.join(path, "images/*.png")
+    image_paths = glob.glob(path)
+    num_images = len(image_paths) if not visualize else 20
+    random.shuffle(image_paths)
+    images = np.zeros((num_images, n, n, 1))
+    labels = np.zeros((num_images))
+
+    for i, image_path in enumerate(image_paths):
+        if i == num_images:
+            break
+        img = Image.open(image_path).convert('L')
+        images[i] = np.array(img).reshape(n, n, 1)
+        labels[i] = int(re.search('\d+', image_path).group()) - 1
+
+    images, labels = shuffle(images, labels)
+    if visualize:
+        np.save("data/greebles/vis-images.npy", images)
+        np.save("data/greebles/vis-labs.npy", labels)
+        print("Successfully saved visualization arrays.")
+    else:
+        X_train, X_test, Y_train, Y_test = train_test_split(images, labels, test_size=5000)
+        np.save("data/greebles/train-images.npy", X_train)
+        np.save("data/greebles/train-labs.npy", Y_train)
+        np.save("data/greebles/test-images.npy", X_test)
+        np.save("data/greebles/test-labs.npy", Y_test)
+        print("Successfully converted pngs.")
 
 
 def write_data_to_tfrecord(is_training=True, chunkify=False):
     """
     Adapted from https://github.com/www0wwwjs1/Matrix-Capsules-EM-Tensorflow/blob/master/data/smallNORB.py
     """
-
     kind = "train" if is_training else "test"
-    print("Start writing smallnorb {} data.".format(kind))
-    CHUNK = 24300 * 2 // 10  # create 10 chunks
+    print("Start writing greebles {} data.".format(kind))
+    total_num_images = 11000 if is_training else 5000
+    CHUNK = total_num_images // 10  # create 10 chunks
 
     start = time.time()
     if is_training:
-        fid_images = open('data/smallnorb/smallnorb-5x46789x9x18x6x2x96x96-training-dat.mat', 'rb')
-        fid_labels = open('data/smallnorb/smallnorb-5x46789x9x18x6x2x96x96-training-cat.mat', 'rb')
+        images = np.load("data/greebles/train-images.npy")
+        labels = np.load("data/greebles/train-labs.npy")
     else:
-        fid_images = open('data/smallnorb/smallnorb-5x01235x9x18x6x2x96x96-testing-dat.mat', 'rb')
-        fid_labels = open('data/smallnorb/smallnorb-5x01235x9x18x6x2x96x96-testing-cat.mat', 'rb')
-
-    for i in range(6):
-        a = fid_images.read(4) # header
-
-    total_num_images = 24300 * 2
+        images = np.load("data/greebles/test-images.npy")
+        labels = np.load("data/greebles/test-labs.npy")
 
     for j in range(total_num_images // CHUNK if chunkify else 1):
-        num_images = CHUNK if chunkify else total_num_images  # 24300 * 2
-        images = np.zeros((num_images, 96 * 96))
-        for idx in range(num_images):
-            temp = fid_images.read(96 * 96)
-            images[idx, :] = np.fromstring(temp, 'uint8')
-        for i in range(5):
-            a = fid_labels.read(4) # header
-        labels = np.fromstring(fid_labels.read(num_images * np.dtype('int32').itemsize), 'int32')
-        labels = np.repeat(labels, 2)
+        num_images = CHUNK if chunkify else total_num_images
 
         print("Start filling chunk {}.".format(j))
 
@@ -64,12 +70,9 @@ def write_data_to_tfrecord(is_training=True, chunkify=False):
         images = images[perm]
         labels = labels[perm]
 
-        # if j == 0:
-        #     plot_imgs(images[:9], labels[:9])
-
-        writer = tf.python_io.TFRecordWriter("data/smallnorb/{}-{}.tfrecords".format(kind, j))
+        writer = tf.python_io.TFRecordWriter("data/greebles/{}-{}.tfrecords".format(kind, j))
         for i in range(num_images):
-            img = images[i, :].tobytes()
+            img = images[i].tostring()
             lab = labels[i].astype(np.int64)
             example = tf.train.Example(features=tf.train.Features(feature={
                 "label": tf.train.Feature(int64_list=tf.train.Int64List(value=[lab])),
@@ -86,7 +89,7 @@ def tfrecord():
     write_data_to_tfrecord(is_training=False, chunkify=False)
 
 
-def read_norb_tfrecord(filenames):
+def read_greebles_tfrecord(filenames, n=96):
     """
     from https://github.com/www0wwwjs1/Matrix-Capsules-EM-Tensorflow/blob/master/data/smallNORB.py
     """
@@ -102,19 +105,19 @@ def read_norb_tfrecord(filenames):
                                            'img_raw': tf.FixedLenFeature([], tf.string),
                                        })
     img = tf.decode_raw(features['img_raw'], tf.float64)
-    img = tf.reshape(img, [96, 96, 1])
+    img = tf.reshape(img, [n, n, 1])
     img = tf.cast(img, tf.float32)
     label = tf.cast(features['label'], tf.int32)
     return img, label
 
 
-def load_norb(batch_size, samples_per_epoch=None, is_training=True):
+def load_greebles(batch_size, samples_per_epoch=None, is_training=True):
     if is_training:
-        num_train_batches = samples_per_epoch // batch_size if samples_per_epoch else 24300 * 2 // batch_size
+        num_train_batches = samples_per_epoch // batch_size if samples_per_epoch else 11000 // batch_size
         # do not provide training or validation data here
         return [], [], [], [], num_train_batches, 0
     else:
-        num_test_batches = 24300 * 2 // batch_size
+        num_test_batches = 5000 // batch_size
         # do not provide test data here
         return [], [], num_test_batches
 
@@ -125,18 +128,16 @@ def test(is_training=True):
     else:
         CHUNK_RE = re.compile(r"test-\d+\.tfrecords")
 
-    processed_dir = 'data/smallnorb'
+    processed_dir = 'data/greebles'
     chunk_files = [os.path.join(processed_dir, fname)
                    for fname in os.listdir(processed_dir)
                    if CHUNK_RE.match(fname)]
-    image, label = read_norb_tfrecord(chunk_files)
-
-    image = tf.image.random_brightness(image, max_delta=32. / 255.)
-    image = tf.image.random_contrast(image, lower=0.5, upper=1.5)
+    image, label = read_greebles_tfrecord(chunk_files)
+    # image = tf.image.random_brightness(image, max_delta=32. / 255.)
+    # image = tf.image.random_contrast(image, lower=0.5, upper=1.5)
 
     image = tf.image.resize_images(image, [48, 48])
 
-    """Batch Norm"""
     params_shape = [image.get_shape()[-1]]
     beta = tf.get_variable(
         'beta', params_shape, tf.float32,
@@ -148,7 +149,6 @@ def test(is_training=True):
     image = tf.nn.batch_normalization(image, mean, variance, beta, gamma, 0.001)
 
     image = tf.random_crop(image, [32, 32, 1])
-
     batch_size = 8
     x, y = tf.train.shuffle_batch([image, label], batch_size=batch_size, capacity=batch_size * 64,
                                   min_after_dequeue=batch_size * 32, allow_smaller_final_batch=False)
@@ -169,15 +169,33 @@ def test(is_training=True):
         coord.request_stop()
         coord.join(threads)
 
-    print('Successfully completed test.')
+    print("Successfully completed test.")
 
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description="Smallnorb Data Writer")
-    parser.add_argument('-t', '--test', action='store_true')
+    parser = argparse.ArgumentParser(description='Greebles Data Writer')
+    parser.add_argument('-n', help='image dimensions', dest='n', type=int, default=96) 
+    parser.add_argument('-f', '--force', action='store_true') 
+    parser.add_argument('-t', '--test', action='store_true') 
+    parser.add_argument('-v', '--visualize', action='store_true') 
     args = parser.parse_args()
+
+    train_imgs_file = "data/greebles/train-images.npy"
+    train_labs_file = "data/greebles/train-labs.npy"
+    test_imgs_file = "data/greebles/test-images.npy"
+    test_labs_file = "data/greebles/test-labs.npy"
 
     if args.test:
         test()
-    else:
+    elif args.visualize:
+        convertPngsToNPY(args.n, visualize=True)
+    else: 
+        if args.force or (not os.path.isfile(train_imgs_file) or \
+            not os.path.isfile(train_labs_file) or \
+            not os.path.isfile(test_imgs_file) or \
+            not os.path.isfile(test_labs_file)):
+            convertPngsToNPY(args.n)
+        for filepath in glob.glob("data/greebles/*.tfrecords"):
+            os.remove(filepath)
         tfrecord()
+

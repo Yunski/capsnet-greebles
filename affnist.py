@@ -1,28 +1,41 @@
 import os
-import numpy as np
 import scipy.io
+import numpy as np
+import tensorflow as tf
 
 from sklearn.utils import shuffle
 
-def load_affnist(batch_size, samples_per_epoch=None, is_training=True):
+def random_shift(image):
+    return tf.contrib.keras.preprocessing.image.random_shift(image, 0.35, 0.35)
+
+
+def load_affnist(batch_size, samples_per_epoch=None, is_training=True, use_val_only=False):
     path = os.path.join('data', 'affnist')
     if is_training:
         train_data = loadmat(os.path.join(path, 'training.mat'))
         validation_data = loadmat(os.path.join(path, 'validation.mat'))
-        X_train = train_data['affNISTdata']['image'].transpose()
-        X_train = X_train.reshape((X_train.shape[0], 40, 40, 1)).astype(np.float32) / 255
-        Y_train = train_data['affNISTdata']['label_int']
-        Y_train = Y_train.reshape((Y_train.shape[0])).astype(np.int32)
-        
+              
         X_val = validation_data['affNISTdata']['image'].transpose()
         X_val = X_val.reshape((X_val.shape[0], 40, 40, 1)).astype(np.float32) / 255
         Y_val = validation_data['affNISTdata']['label_int']
         Y_val = Y_val.reshape((Y_val.shape[0])).astype(np.int32)
 
-        X_train, Y_train = shuffle(X_train, Y_train)
         X_val, Y_val = shuffle(X_val, Y_val)
-        num_train_batches = samples_per_epoch // batch_size if samples_per_epoch else len(Y_train) // batch_size
         num_val_batches = len(Y_val) // batch_size
+ 
+        Y_train = train_data['affNISTdata']['label_int']
+        Y_train = Y_train.reshape((Y_train.shape[0])).astype(np.int32)
+
+        num_train_batches = samples_per_epoch // batch_size if samples_per_epoch else len(Y_train) // batch_size
+        if use_val_only:
+            print("use_val_only=True")
+            return [], X_val, [], Y_val, num_train_batches, num_val_batches 
+        
+        X_train = train_data['affNISTdata']['image'].transpose()
+        X_train = X_train.reshape((X_train.shape[0], 40, 40, 1)).astype(np.float32) / 255
+        X_train = np.array([random_shift(image) for image in X_train])
+
+        X_train, Y_train = shuffle(X_train, Y_train)
 
         return X_train, X_val, Y_train, Y_val, num_train_batches, num_val_batches
     else:
@@ -31,7 +44,7 @@ def load_affnist(batch_size, samples_per_epoch=None, is_training=True):
         X_test = X_test.reshape((320000, 40, 40, 1)).astype(np.float32) / 255
         Y_test = dataset['affNISTdata']['label_int']
         Y_test = Y_test.reshape((320000)).astype(np.int32)
-
+        
         num_test_batches = len(Y_test) // batch_size
         
         return X_test, Y_test, num_test_batches

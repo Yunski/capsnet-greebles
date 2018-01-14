@@ -4,20 +4,14 @@ import tensorflow as tf
 from config import cfg
 from model_eval import train
 from capsnet import CapsNet
+from utils import get_dataset_values
 
 def main(_):
     dataset = cfg.dataset
-    if dataset == 'mnist':
-        input_shape = (cfg.batch_size, 28, 28, 1)
-    elif dataset == 'affnist':
-        input_shape = (cfg.batch_size, 40, 40, 1)
-    elif dataset == 'smallnorb':
-        input_shape = (cfg.batch_size, 32, 32, 1)
-    else:
-        raise ValueError("{} is not an available dataset".format(dataset))
-    
+    input_shape, num_classes = get_dataset_values(dataset, cfg.batch_size)
+ 
     tf.logging.info("Initializing CNN for {}...".format(dataset))
-    model = CapsNet(input_shape=input_shape, is_training=True)
+    model = CapsNet(input_shape, num_classes, is_training=True)
     tf.logging.info("Finished initialization.")
 
     if not os.path.exists(cfg.logdir):

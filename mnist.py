@@ -3,7 +3,7 @@ import numpy as np
 
 from sklearn.model_selection import train_test_split
 
-def load_mnist(batch_size, samples_per_epoch=None, is_training=True):
+def load_mnist(batch_size, samples_per_epoch=None, is_training=True, use_val_only=False):
     path = os.path.join('data', 'mnist')
     if is_training:
         train_imgs = open(os.path.join(path, 'train-images-idx3-ubyte'))
@@ -16,7 +16,9 @@ def load_mnist(batch_size, samples_per_epoch=None, is_training=True):
         X_train, X_val, Y_train, Y_val = train_test_split(X, Y, test_size=5000)
         num_train_batches = samples_per_epoch // batch_size if samples_per_epoch else len(Y_train) // batch_size
         num_val_batches = len(Y_val) // batch_size
-    
+
+        if use_val_only:
+            return [], X_val, [], Y_val, num_train_batches, num_val_batches
         return X_train, X_val, Y_train, Y_val, num_train_batches, num_val_batches 
     else:
         test_imgs = open(os.path.join(path, 't10k-images-idx3-ubyte'))

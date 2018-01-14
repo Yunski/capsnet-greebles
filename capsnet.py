@@ -1,19 +1,19 @@
 import numpy as np
 import tensorflow as tf
 
-from utils import get_train_batch
+from utils import get_train_batch, get_test_batch
 from config import cfg
 
 class CapsNet(object):
-    def __init__(self, input_shape, is_training=True, use_test_queue=False):
+    def __init__(self, input_shape, num_classes, is_training=True, use_test_queue=False):
         self.input_shape = input_shape
         self.name = "capsnet"
         self.graph = tf.Graph()
         with self.graph.as_default():
             if is_training:
                 self.X, self.labels = get_train_batch(cfg.dataset, cfg.batch_size, cfg.num_threads, samples_per_epoch=cfg.samples_per_epoch)
-                self.Y = tf.one_hot(self.labels, depth=10, axis=1, dtype=tf.float32)
-                self.inference()
+                self.Y = tf.one_hot(self.labels, depth=num_classes, axis=1, dtype=tf.float32)
+                self.inference(num_classes)
                 self._loss()
                 self._summary()
                 self.global_step = tf.Variable(0, name='global_step', trainable=False)
@@ -21,18 +21,18 @@ class CapsNet(object):
                 self.train_op = self.optimizer.minimize(self.total_loss, global_step=self.global_step)
             else:
                 if use_test_queue:
-                    self.X, self.labels = get_test_batch(cfg.dataset, cfg.batch_size, cfg.num_threads, samples_per_epoch=cfg.samples_per_epoch)
-                    self.Y = tf.one_hot(self.labels, depth=10, axis=1, dtype=tf.float32)
+                    self.X, self.labels = get_test_batch(cfg.dataset, cfg.test_batch_size, cfg.num_threads)
+                    self.Y = tf.one_hot(self.labels, depth=num_classes, axis=1, dtype=tf.float32)
                 else:
                     self.X = tf.placeholder(tf.float32, shape=self.input_shape)
                     self.labels = tf.placeholder(tf.int32, shape=(self.input_shape[0],))
-                    self.Y = tf.one_hot(self.labels, depth=10, axis=1, dtype=tf.float32) 
-                self.inference()
+                    self.Y = tf.one_hot(self.labels, depth=num_classes, axis=1, dtype=tf.float32) 
+                self.inference(num_classes)
                 errors = tf.not_equal(tf.to_int32(self.labels), self.predictions)
                 self.error_rate = tf.reduce_mean(tf.cast(errors, tf.float32))          
 
 
-    def inference(self, eps=1e-9):
+    def inference(self, num_classes, eps=1e-9):
         with tf.variable_scope('Conv1_layer'):
             conv1 = tf.contrib.layers.conv2d(self.X, num_outputs=256,
                                              kernel_size=9, stride=1,
@@ -42,7 +42,7 @@ class CapsNet(object):
             caps1 = primaryCaps.forward(conv1) 
 
         with tf.variable_scope('DigitCaps_layer'):
-            digitCaps = CapsLayer(n_caps=10, v_len=16, use_routing=True, fc=True)
+            digitCaps = CapsLayer(n_caps=num_classes, v_len=16, use_routing=True, fc=True)
             caps2 = digitCaps.forward(caps1)
 
         with tf.variable_scope('Mask'):
@@ -50,7 +50,7 @@ class CapsNet(object):
             self.v_probs = tf.nn.softmax(self.v_len, dim=1)
             self.predictions = tf.to_int32(tf.argmax(self.v_probs, axis=1))
             self.predictions = tf.reshape(self.predictions, shape=(self.input_shape[0], ))
-            masked_v = tf.multiply(tf.squeeze(caps2), tf.reshape(self.Y, (-1, 10, 1)))
+            masked_v = tf.multiply(tf.squeeze(caps2), tf.reshape(self.Y, (-1, num_classes, 1)))
         
         with tf.variable_scope('Decoder'):
             v_j = tf.reshape(masked_v, shape=(self.input_shape[0], -1))
