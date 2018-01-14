@@ -24,25 +24,22 @@ class VGGNet(object):
         self.graph = tf.Graph()
         with self.graph.as_default():
             if is_training:
-                self.X, self.labels = get_train_batch(cfg.dataset, cfg.batch_size, cfg.num_threads,
-                                                      samples_per_epoch=cfg.samples_per_epoch)
+                self.X, self.labels = get_train_batch(cfg.dataset, cfg.batch_size, cfg.num_threads, samples_per_epoch=cfg.samples_per_epoch)
                 self.inference(self.X, num_classes)
                 self.loss()
                 self._summary()
                 self.global_step = tf.Variable(0, name='global_step', trainable=False)
-                learning_rate = 1e-4
-                self.optimizer = tf.train.AdamOptimizer(learning_rate, epsilon=0.1)
+                self.optimizer = tf.train.AdamOptimizer(learning_rate=1e-4, epsilon=0.01)
                 self.train_op = self.optimizer.minimize(self.total_loss, global_step=self.global_step)
             else:
                 if use_test_queue:
-                    self.X, self.labels = get_test_batch(cfg.dataset, cfg.batch_size, cfg.num_threads,
-                                                         samples_per_epoch=cfg.samples_per_epoch)
+                    self.X, self.labels = get_test_batch(cfg.dataset, cfg.test_batch_size, cfg.num_threads)
                 else:
                     self.X = tf.placeholder(tf.float32, shape=self.input_shape)
                     self.labels = tf.placeholder(tf.int32, shape=(self.input_shape[0],))
-                    self.inference(self.X, keep_prob=1.0)
-                    self.loss()
-                    self.error()
+                self.inference(self.X, num_classes, keep_prob=1.0)
+                self.loss()
+                self.error()
 
     def inference(self, inputs, num_classes, keep_prob=0.5):
         def conv_3x3_with_relu(x, channels):
@@ -59,14 +56,17 @@ class VGGNet(object):
             return pool
 
         def fully_connected(x, channels):
-            reshape = tf.reshape(x, [x.shape[0].value, -1])
             weights = variable_on_cpu('weights',
-                                      shape=[reshape.shape[1].value, channels],
+                                      shape=[x.shape[1].value, channels],
                                       initializer=tf.contrib.layers.xavier_initializer())
             biases = variable_on_cpu('biases', [channels], tf.constant_initializer(0.0))
-            fc = tf.nn.relu(tf.matmul(reshape, weights) + biases, name=scope.name)
+            fc = tf.nn.relu(tf.matmul(x, weights) + biases, name=scope.name)
             return fc
 
+        def dropout(x):
+            dropout = tf.nn.dropout(x, keep_prob)
+            return dropout
+            
         # block 1: three 3x3 conv filters, one 2x2 max-pool, 64 channels
         with tf.variable_scope('conv1') as scope:
             conv1 = conv_3x3_with_relu(inputs, 64)
@@ -116,12 +116,16 @@ class VGGNet(object):
         with tf.name_scope('pool3') as scope:
             pool4 = pool_2x2(conv8)
         '''
-        # two fully-connected layers
+        # two fully-connected layers, with dropout after first
         with tf.variable_scope('fc1') as scope:
-            fc1 = fully_connected(pool3, 512)
+            reshape = tf.reshape(pool3, [pool3.shape[0].value, -1])
+            fc1 = fully_connected(reshape, 512)
+
+        with tf.variable_scope('dropout') as scope:
+            dropout = dropout(fc1)
         
         with tf.variable_scope('fc2') as scope:
-            fc2 = fully_connected(fc1, num_classes)
+            fc2 = fully_connected(dropout, num_classes)
 
         # final softmax layer
         with tf.name_scope('softmax') as scope:
@@ -130,12 +134,14 @@ class VGGNet(object):
         self.logits = logits
 
     def loss(self):
+        # regularization code adapted from https://stackoverflow.com/a/38466108
+        beta = 0.01
+        regularizer = tf.addn_([tf.nn.l2_loss(v) for v in tf.trainable_variables() if "biases" not in v.name])
         self.total_loss = tf.reduce_sum(
             tf.nn.sparse_softmax_cross_entropy_with_logits(
                 logits=self.logits,
                 labels=self.labels
-            )
-        )
+            )) + beta * regularizer
 
     def error(self):
         self.predictions = tf.to_int32(tf.argmax(self.logits, axis=1))
