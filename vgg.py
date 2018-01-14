@@ -14,24 +14,24 @@
 import tensorflow as tf
 
 from config import cfg
-from utils import get_train_batch, variable_on_cpu
+from utils import get_train_batch, get_test_batch, variable_on_cpu
 
 
 class VGGNet(object):
-    def __init__(self, input_shape, is_training=True, use_test_queue=False):
+    def __init__(self, input_shape, num_classes, is_training=True, use_test_queue=False):
         self.input_shape = input_shape
-        self.name = "vggsmallnet"
+        self.name = "vggnet"
         self.graph = tf.Graph()
         with self.graph.as_default():
             if is_training:
                 self.X, self.labels = get_train_batch(cfg.dataset, cfg.batch_size, cfg.num_threads,
                                                       samples_per_epoch=cfg.samples_per_epoch)
-                self.inference(self.X)
+                self.inference(self.X, num_classes)
                 self.loss()
                 self._summary()
                 self.global_step = tf.Variable(0, name='global_step', trainable=False)
-                learning_rate = 1e-5
-                self.optimizer = tf.train.AdamOptimizer(learning_rate)
+                learning_rate = 1e-4
+                self.optimizer = tf.train.AdamOptimizer(learning_rate, epsilon=0.1)
                 self.train_op = self.optimizer.minimize(self.total_loss, global_step=self.global_step)
             else:
                 if use_test_queue:
@@ -44,7 +44,7 @@ class VGGNet(object):
                     self.loss()
                     self.error()
 
-    def inference(self, inputs, keep_prob=0.5):
+    def inference(self, inputs, num_classes, keep_prob=0.5):
         def conv_3x3_with_relu(x, channels):
             kernel = variable_on_cpu('weights', shape=[3, 3, x.shape[-1].value, channels],
                                      initializer=tf.contrib.layers.xavier_initializer())
@@ -121,7 +121,7 @@ class VGGNet(object):
             fc1 = fully_connected(pool3, 512)
         
         with tf.variable_scope('fc2') as scope:
-            fc2 = fully_connected(fc1, 10)
+            fc2 = fully_connected(fc1, num_classes)
 
         # final softmax layer
         with tf.name_scope('softmax') as scope:
