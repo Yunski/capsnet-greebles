@@ -65,22 +65,22 @@ class resnet(object):
                 res = self.res_layer(nodes[-1], num_filters)
                 nodes.append(res)
 
-        # with tf.variable_scope('pool2') as scope:
-        #     pool_2 = tf.nn.max_pool(nodes[-1], ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='SAME', name=scope.name)
-        #     nodes.append(pool_2)
+        with tf.variable_scope('pool2') as scope:
+            pool_2 = tf.nn.max_pool(nodes[-1], ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='SAME', name=scope.name)
+            nodes.append(pool_2)
 
-        # # Set of residual layers #3.
-        # num_layers = 12
-        # num_filters = 256
-        # for i in range(num_layers):
-        #     with tf.variable_scope('res3_%d' % (i)) as scope:
-        #         res = self.res_layer(nodes[-1], num_filters)
-        #         nodes.append(res)
+        # Set of residual layers #3.
+        num_layers = 12
+        num_filters = 256
+        for i in range(num_layers):
+            with tf.variable_scope('res3_%d' % (i)) as scope:
+                res = self.res_layer(nodes[-1], num_filters)
+                nodes.append(res)
 
         # End of residual layers. As per the paper, no maxpooling or dropout occurs at the end of the final convolution.
-        dropout = tf.nn.dropout(nodes[-1], 0.5)
+
         # Global average pooling.
-        avg_pool = tf.reduce_mean(dropout, [1, 2])
+        avg_pool = tf.reduce_mean(nodes[-1], [1, 2])
 
         # Finally, fully-connected layer which outputs the logits for classification.
         num_classes = 10
