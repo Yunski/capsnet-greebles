@@ -31,6 +31,9 @@ class CapsNet(object):
                 errors = tf.not_equal(tf.to_int32(self.labels), self.predictions)
                 self.error_rate = tf.reduce_mean(tf.cast(errors, tf.float32))          
 
+                self._loss()
+                self._summary()
+
 
     def inference(self, num_classes, eps=1e-9):
         with tf.variable_scope('Conv1_layer'):
@@ -69,8 +72,8 @@ class CapsNet(object):
         self.margin_loss = tf.reduce_mean(tf.reduce_sum(L, axis=1))
         X = tf.reshape(self.X, shape=(self.input_shape[0], -1)) 
         square_residual = tf.square(self.decoded - X)
-        self.reconstruction_err = tf.reduce_sum(square_residual)        
-        self.total_loss = self.margin_loss + reg * self.reconstruction_err
+        self.reconstruction_err = tf.reduce_mean(square_residual)        
+        self.total_loss = self.margin_loss + reg * np.prod(self.input_shape[1:3]) * self.reconstruction_err
 
 
     def _summary(self):
@@ -79,7 +82,8 @@ class CapsNet(object):
         train_summary.append(tf.summary.scalar('train/reconstruction_loss', self.reconstruction_err))
         train_summary.append(tf.summary.scalar('train/total_loss', self.total_loss))
         recon_img = tf.reshape(self.decoded, shape=self.input_shape)
-        train_summary.append(tf.summary.image('reconstruction_img', recon_img))
+        train_summary.append(tf.summary.image('input_img', self.X, max_outputs=5))
+        train_summary.append(tf.summary.image('reconstruction_img', recon_img, max_outputs=5))
         self.train_summary = tf.summary.merge(train_summary)
 
         errors = tf.not_equal(tf.to_int32(self.labels), self.predictions)
@@ -107,7 +111,8 @@ class CapsLayer(object):
                 with tf.variable_scope('routing'):
                     b = tf.zeros((inputs.shape[0].value, inputs.shape[1].value, self.n_caps, 1, 1), dtype=tf.float32)
                     caps_out = self.route(inputs, b)
-                    return tf.squeeze(caps_out, axis=1)
+                    output = tf.squeeze(caps_out, axis=1)
+                    return output
             else:
                 raise ValueError("CapsLayer with fc=True is DigitCaps and must use routing")
         else:
@@ -115,8 +120,9 @@ class CapsLayer(object):
                 conv_out = tf.contrib.layers.conv2d(inputs, self.n_caps * self.v_len, 
                                                     self.ksize, self.stride, padding='VALID', 
                                                     activation_fn=self.activation_fn)
-                conv_out = tf.reshape(conv_out, (inputs.shape[0].value, -1, self.v_len, 1))
-                return self.squash(conv_out)
+                conv_out_reshape = tf.reshape(conv_out, (inputs.shape[0].value, -1, self.v_len, 1))
+                output = self.squash(conv_out_reshape)
+                return output
             else:
                 raise ValueError("CapsLayer with fc=False is PrimaryCaps and does not use routing")
 
@@ -124,9 +130,9 @@ class CapsLayer(object):
     def route(self, inputs, b, num_iter=3):
         W = tf.get_variable('W', shape=(1, inputs.shape[1].value, self.n_caps, inputs.shape[3].value, self.v_len), 
                             dtype=tf.float32, initializer=self.initializer)   
-        W = tf.tile(W, [inputs.shape[0].value, 1, 1, 1, 1])
-        inputs = tf.tile(inputs, [1, 1, self.n_caps, 1, 1])
-        u = tf.matmul(W, inputs, transpose_a=True)
+        W_tile = tf.tile(W, [inputs.shape[0].value, 1, 1, 1, 1])
+        inputs_tile = tf.tile(inputs, [1, 1, self.n_caps, 1, 1])
+        u = tf.matmul(W_tile, inputs_tile, transpose_a=True)
         # technicality: don't want to apply backprop during iterations
         u_stop_grad = tf.stop_gradient(u)
         for r in range(num_iter):
@@ -135,8 +141,8 @@ class CapsLayer(object):
                 s = tf.multiply(c, u_stop_grad)
                 s = tf.reduce_sum(s, axis=1, keep_dims=True)
                 v = self.squash(s)
-                v = tf.tile(v, [1, inputs.shape[1].value, 1, 1, 1])
-                agreement = tf.matmul(u_stop_grad, v, transpose_a=True)
+                v_tile = tf.tile(v, [1, inputs.shape[1].value, 1, 1, 1])
+                agreement = tf.matmul(u_stop_grad, v_tile, transpose_a=True)
                 b += agreement
             else:
                 s = tf.multiply(c, u)
@@ -147,5 +153,7 @@ class CapsLayer(object):
 
     def squash(self, v, eps=1e-9):
         v_l2_2_norm = tf.reduce_sum(tf.square(v), -2, keep_dims=True)
-        return v_l2_2_norm / (1 + v_l2_2_norm) * (v / (tf.sqrt(v_l2_2_norm) + eps))
-        
+        scale = v_l2_2_norm / (1 + v_l2_2_norm) / tf.sqrt(v_l2_2_norm + eps)
+        v_squash = scale * v
+        return v_squash
+

@@ -72,7 +72,7 @@ def write_data_to_tfrecord(is_training=True, chunkify=False):
     Adapted from https://github.com/www0wwwjs1/Matrix-Capsules-EM-Tensorflow/blob/master/data/smallNORB.py
     """
     kind = "train" if is_training else "test"
-    print("Start writing afffnist {} data.".format(kind))
+    print("Start writing affnist {} data.".format(kind))
 
     start = time.time()
     if is_training:
