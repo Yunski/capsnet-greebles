@@ -78,9 +78,9 @@ class resnet(object):
         #         nodes.append(res)
 
         # End of residual layers. As per the paper, no maxpooling or dropout occurs at the end of the final convolution.
-
+        dropout = tf.nn.dropout(nodes[-1], 0.5)
         # Global average pooling.
-        avg_pool = tf.reduce_mean(nodes[-1], [1, 2])
+        avg_pool = tf.reduce_mean(dropout, [1, 2])
 
         # Finally, fully-connected layer which outputs the logits for classification.
         num_classes = 10
