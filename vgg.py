@@ -32,7 +32,7 @@ class VGGNet(object):
                 self.loss()
                 self._summary()
                 self.global_step = tf.Variable(0, name='global_step', trainable=False)
-                self.optimizer = tf.train.AdamOptimizer(learning_rate=1e-4, epsilon=0.01)
+                self.optimizer = tf.train.AdamOptimizer(learning_rate=1e-4, epsilon=0.0001)
                 self.train_op = self.optimizer.minimize(self.total_loss, global_step=self.global_step)
             else:
                 if use_test_queue:
@@ -42,7 +42,7 @@ class VGGNet(object):
                     self.labels = tf.placeholder(tf.int32, shape=(self.input_shape[0],))
                 self.inference(self.X, num_classes, keep_prob=1.0)
                 self.loss()
-                self.error()
+                self._summary()
 
     def inference(self, inputs, num_classes, keep_prob=0.5):
         def conv_3x3_with_relu(x, channels):
