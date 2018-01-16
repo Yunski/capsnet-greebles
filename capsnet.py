@@ -4,6 +4,10 @@ import tensorflow as tf
 from utils import get_train_batch, get_test_batch
 from config import cfg
 
+"""
+Adapted from naturomics/CapsNet-Tensorflow
+"""
+
 class CapsNet(object):
     def __init__(self, input_shape, num_classes, is_training=True, use_test_queue=False):
         self.input_shape = input_shape
@@ -27,7 +31,7 @@ class CapsNet(object):
                     self.X = tf.placeholder(tf.float32, shape=self.input_shape)
                     self.labels = tf.placeholder(tf.int32, shape=(self.input_shape[0],))
                     self.Y = tf.one_hot(self.labels, depth=num_classes, axis=1, dtype=tf.float32) 
-                self.inference(num_classes)
+                self.inference(num_classes, is_training=False)
                 errors = tf.not_equal(tf.to_int32(self.labels), self.predictions)
                 self.error_rate = tf.reduce_mean(tf.cast(errors, tf.float32))          
 
@@ -35,7 +39,7 @@ class CapsNet(object):
                 self._summary()
 
 
-    def inference(self, num_classes, eps=1e-9):
+    def inference(self, num_classes, eps=1e-9, is_training=True):
         with tf.variable_scope('Conv1_layer'):
             conv1 = tf.contrib.layers.conv2d(self.X, num_outputs=256,
                                              kernel_size=9, stride=1,
@@ -53,8 +57,12 @@ class CapsNet(object):
             self.v_probs = tf.nn.softmax(self.v_len, dim=1)
             self.predictions = tf.to_int32(tf.argmax(self.v_probs, axis=1))
             self.predictions = tf.reshape(self.predictions, shape=(self.input_shape[0], ))
-            masked_v = tf.multiply(tf.squeeze(caps2), tf.reshape(self.Y, (-1, num_classes, 1)))
-        
+            predictions_one_hot = tf.one_hot(self.predictions, depth=num_classes, axis=1, dtype=tf.float32)
+            if is_training:
+                masked_v = tf.multiply(tf.squeeze(caps2), tf.reshape(self.Y, (-1, num_classes, 1)))
+            else:
+                masked_v = tf.multiply(tf.squeeze(caps2), tf.reshape(predictions_one_hot, (-1, num_classes, 1)))
+
         with tf.variable_scope('Decoder'):
             v_j = tf.reshape(masked_v, shape=(self.input_shape[0], -1))
             fc1 = tf.contrib.layers.fully_connected(v_j, num_outputs=512)
@@ -134,20 +142,21 @@ class CapsLayer(object):
         inputs_tile = tf.tile(inputs, [1, 1, self.n_caps, 1, 1])
         u = tf.matmul(W_tile, inputs_tile, transpose_a=True)
         # technicality: don't want to apply backprop during iterations
-        u_stop_grad = tf.stop_gradient(u)
+        #u_stop_grad = tf.stop_gradient(u)
         for r in range(num_iter):
             c = tf.nn.softmax(b, dim=2)
+            s = tf.multiply(c, u)
+            s = tf.reduce_sum(s, axis=1, keep_dims=True)
+            v = self.squash(s)
             if r < num_iter - 1:
-                s = tf.multiply(c, u_stop_grad)
-                s = tf.reduce_sum(s, axis=1, keep_dims=True)
-                v = self.squash(s)
+                #s = tf.multiply(c, u_stop_grad)
+                #s = tf.reduce_sum(s, axis=1, keep_dims=True)
+                #v = self.squash(s)
                 v_tile = tf.tile(v, [1, inputs.shape[1].value, 1, 1, 1])
-                agreement = tf.matmul(u_stop_grad, v_tile, transpose_a=True)
+                #agreement = tf.matmul(u_stop_grad, v_tile, transpose_a=True)
+                agreement = tf.matmul(u, v_tile, transpose_a=True)
                 b += agreement
-            else:
-                s = tf.multiply(c, u)
-                s = tf.reduce_sum(s, axis=1, keep_dims=True)
-                v = self.squash(s)
+            #else:
         return v
         
 

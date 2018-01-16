@@ -7,6 +7,10 @@ from tqdm import tqdm
 from utils import load_data
 from config import cfg
 
+"""
+Adapted from naturomics/CapsNet-Tensorflow
+"""
+
 def train(model, supervisor, dataset):
     data = load_data(dataset, cfg.batch_size, samples_per_epoch=cfg.samples_per_epoch, use_val_only=True)
     if not data:
@@ -88,7 +92,11 @@ def evaluate(model, supervisor, dataset):
         progress_bar = tqdm(range(num_test_batches), total=num_test_batches, ncols=70, leave=False, unit='b')
         for step in progress_bar:
             if len(X_test) == 0:
-                err = sess.run(model.error_rate)
+                if step % 320 == 0:
+                    err, summary_str = sess.run([model.error_rate, model.train_summary])
+                    supervisor.summary_writer.add_summary(summary_str, step)
+                else:
+                    err = sess.run(model.error_rate)
             else:
                 start = step * cfg.test_batch_size
                 end = start + cfg.test_batch_size

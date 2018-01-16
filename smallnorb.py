@@ -120,6 +120,10 @@ def load_norb(batch_size, samples_per_epoch=None, is_training=True):
 
 
 def test(is_training=True):
+    """
+    from https://github.com/www0wwwjs1/Matrix-Capsules-EM-Tensorflow/blob/master/data/smallNORB.py
+    """
+
     if is_training:
         CHUNK_RE = re.compile(r"train-\d+\.tfrecords")
     else:
