@@ -5,7 +5,7 @@ import random
 import re
 import sys
 import re
-import scipy.misc
+import skimage.transform
 import time
 import numpy as np
 import tensorflow as tf
@@ -60,7 +60,7 @@ def convertPngsToNPY(n, visualize=False):
         test_labels[i] = int(re.search('\d+', image_path).group()) - 1
 
     train_images, train_labels = shuffle(train_images, train_labels)
-    val_images = np.array([scipy.misc.imresize(img, (48, 48)) for img in np.squeeze(val_images)]).reshape(-1, 48, 48, 1)
+    val_images = np.array([skimage.transform.resize(img, (48, 48), mode='constant', preserve_range=True) for img in np.squeeze(val_images)]).reshape(-1, 48, 48, 1)
     val_images = val_images[:,8:-8,8:-8]
     
     if visualize:
