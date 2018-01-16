@@ -31,7 +31,6 @@ class resnet(object):
     def inference(self, inputs, num_classes, keep_prob=0.5):
         nodes = []
 
-        # One convolutional layer with maxpooling before beginning residual learning.
         with tf.variable_scope('conv0') as scope:
             filter_size = 7
             stride = 1
@@ -42,10 +41,8 @@ class resnet(object):
             pool_0 = tf.nn.max_pool(activation_0, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='SAME', name=scope.name)
             nodes.append(pool_0)
 
-        # Begin residual layers. In ResNet, we have a num_layers successive residual layers before downsampling occurs.
-
         # Set of residual layers #1.
-        num_layers = 6
+        num_layers = 3
         num_filters = 64
         for i in range(num_layers):
             with tf.variable_scope('res1_%d' % (i)) as scope:
@@ -58,7 +55,7 @@ class resnet(object):
             nodes.append(pool_1)
 
         # Set of residual layers #2.
-        num_layers = 8
+        num_layers = 4
         num_filters = 128
         for i in range(num_layers):
             with tf.variable_scope('res2_%d' % (i)) as scope:
@@ -70,14 +67,12 @@ class resnet(object):
             nodes.append(pool_2)
 
         # Set of residual layers #3.
-        num_layers = 12
+        num_layers = 6
         num_filters = 256
         for i in range(num_layers):
             with tf.variable_scope('res3_%d' % (i)) as scope:
                 res = self.res_layer(nodes[-1], num_filters)
                 nodes.append(res)
-
-        # End of residual layers. As per the paper, no maxpooling or dropout occurs at the end of the final convolution.
 
         # Global average pooling.
         avg_pool = tf.reduce_mean(nodes[-1], [1, 2])
@@ -109,14 +104,12 @@ class resnet(object):
 
         return bn
 
-    # A residual layer, as implemented in the ResNet paper.
     def res_layer(self, x, num_filters):
         # Input dimensions.
         x_height = x.get_shape().as_list()[1]
         x_width = x.get_shape().as_list()[2]
         x_depth = x.get_shape().as_list()[3]
 
-        # One residual layer is made up of two successive convolutional layers.
         filter_size = 3
         stride = 1
 
@@ -141,7 +134,6 @@ class resnet(object):
 
         return activation_2
 
-    # The final fully-connected layer, for which the output is the logits for classification.
     def dense_layer(self, x, x_size, num_classes):
         kernel = variable_on_cpu('weights',
                           shape=[x_size, num_classes],
