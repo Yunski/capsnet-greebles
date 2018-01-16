@@ -109,23 +109,15 @@ class VGGNet(object):
             dropout = dropout(fc1)
         
         with tf.variable_scope('fc2') as scope:
-            fc2 = fully_connected(dropout, num_classes)
-
-        # final softmax layer
-        with tf.name_scope('softmax') as scope:
-            logits = tf.nn.softmax(fc2)
+            logits = fully_connected(dropout, num_classes)
 
         self.logits = logits
 
     def loss(self):
-        # regularization code adapted from https://stackoverflow.com/a/38466108
-        # beta = 0.01
-        # regularizer = tf.add_n([tf.nn.l2_loss(v) for v in tf.trainable_variables() if "biases" not in v.name])
         self.total_loss = tf.reduce_sum(
             tf.nn.sparse_softmax_cross_entropy_with_logits(
                 logits=self.logits,
-                labels=self.labels
-            )) # + beta * regularizer
+                labels=self.labels))
 
     def error(self):
         self.predictions = tf.to_int32(tf.argmax(self.logits, axis=1))
