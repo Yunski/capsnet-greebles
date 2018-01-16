@@ -127,14 +127,14 @@ def tfrecord():
     write_data_to_tfrecord(is_training=False, chunkify=False)
 
 
-def read_greebles_tfrecord(filenames, n=96, num_epochs=None):
+def read_greebles_tfrecord(filenames, n=96):
     """
     from https://github.com/www0wwwjs1/Matrix-Capsules-EM-Tensorflow/blob/master/data/smallNORB.py
     """
 
     assert isinstance(filenames, list)
 
-    filename_queue = tf.train.string_input_producer(filenames, num_epochs=num_epochs)
+    filename_queue = tf.train.string_input_producer(filenames)
     reader = tf.TFRecordReader()
     _, serialized_example = reader.read(filename_queue)
     features = tf.parse_single_example(serialized_example,
