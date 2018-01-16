@@ -5,6 +5,7 @@ import random
 import re
 import sys
 import re
+import scipy.misc
 import time
 import numpy as np
 import tensorflow as tf
@@ -17,16 +18,22 @@ def convertPngsToNPY(n, visualize=False):
     print("Converting pngs to numpy array file...")
     path = os.path.join("data", "greebles")
     train_path = os.path.join(path, "train/*.png")
+    val_path = os.path.join(path, "validation/*.png")
     test_path = os.path.join(path, "test/*.png")
     train_image_paths = glob.glob(train_path)
+    val_image_paths = glob.glob(val_path)
     test_image_paths = glob.glob(test_path)
-    num_train_images = len(train_image_paths) if not visualize else 20
-    num_test_images = len(test_image_paths) if not visualize else 20
+    num_vis_images = 20
+    num_train_images = len(train_image_paths) if not visualize else num_vis_images
+    num_val_images = len(val_image_paths) if not visualize else num_vis_images
+    num_test_images = len(test_image_paths) if not visualize else num_vis_images
     random.shuffle(train_image_paths)
-    random.shuffle(test_image_paths)
 
     train_images = np.zeros((num_train_images, n, n, 1))
     train_labels = np.zeros((num_train_images))
+
+    val_images = np.zeros((num_val_images, n, n, 1))
+    val_labels = np.zeros((num_val_images))
 
     test_images = np.zeros((num_test_images, n, n, 1))
     test_labels = np.zeros((num_test_images))
@@ -38,6 +45,13 @@ def convertPngsToNPY(n, visualize=False):
         train_images[i] = np.array(img).reshape(n, n, 1)
         train_labels[i] = int(re.search('\d+', image_path).group()) - 1
 
+    for i, image_path in enumerate(val_image_paths):
+        if i == num_val_images:
+            break
+        img = Image.open(image_path).convert('L')
+        val_images[i] = np.array(img).reshape(n, n, 1)
+        val_labels[i] = int(re.search('\d+', image_path).group()) - 1
+
     for i, image_path in enumerate(test_image_paths):
         if i == num_test_images:
             break
@@ -46,17 +60,22 @@ def convertPngsToNPY(n, visualize=False):
         test_labels[i] = int(re.search('\d+', image_path).group()) - 1
 
     train_images, train_labels = shuffle(train_images, train_labels)
-    test_images, test_labels = shuffle(test_images, test_labels)
-
+    val_images = np.array([scipy.misc.imresize(img, (48, 48)) for img in np.squeeze(val_images)]).reshape(-1, 48, 48, 1)
+    val_images = val_images[:,8:-8,8:-8]
+    
     if visualize:
         np.save("data/greebles/vis-train-images.npy", train_images)
         np.save("data/greebles/vis-train-labs.npy", train_labels)
+        np.save("data/greebles/vis-val-images.npy", val_images)
+        np.save("data/greebles/vis-val-labs.npy", val_labels)
         np.save("data/greebles/vis-test-images.npy", test_images)
         np.save("data/greebles/vis-test-labs.npy", test_labels)
         print("Successfully saved visualization arrays.")
     else:
         np.save("data/greebles/train-images.npy", train_images)
         np.save("data/greebles/train-labs.npy", train_labels)
+        np.save("data/greebles/val-images.npy", val_images)
+        np.save("data/greebles/val-labs.npy", val_labels)
         np.save("data/greebles/test-images.npy", test_images)
         np.save("data/greebles/test-labs.npy", test_labels)
         print("Successfully converted pngs.")
@@ -132,11 +151,19 @@ def read_greebles_tfrecord(filenames, n=96, num_epochs=None):
 
 def load_greebles(batch_size, samples_per_epoch=None, is_training=True):
     if is_training:
-        num_train_batches = samples_per_epoch // batch_size if samples_per_epoch else 16000 // batch_size
-        # do not provide training or validation data here
-        return [], [], [], [], num_train_batches, 0
+        train_labels = np.load("data/greebles/train-labs.npy")
+        val_images = np.load("data/greebles/val-images.npy")
+        val_labels = np.load("data/greebles/val-labs.npy")
+
+        val_images = val_images / 255
+
+        num_train_batches = samples_per_epoch // batch_size if samples_per_epoch else len(train_labels) // batch_size
+        num_val_batches = len(val_labels) // batch_size
+        # do not provide training data here
+        return [], val_images, [], val_labels, num_train_batches, num_val_batches
     else:
-        num_test_batches = 8000 // batch_size
+        test_labels = np.load("data/greebles/test-labs.npy")
+        num_test_batches = len(test_labels) // batch_size
         # do not provide test data here
         return [], [], num_test_batches
 
