@@ -32,9 +32,6 @@ class CapsNet(object):
                     self.labels = tf.placeholder(tf.int32, shape=(self.input_shape[0],))
                     self.Y = tf.one_hot(self.labels, depth=num_classes, axis=1, dtype=tf.float32) 
                 self.inference(num_classes, is_training=False)
-                errors = tf.not_equal(tf.to_int32(self.labels), self.predictions)
-                self.error_rate = tf.reduce_mean(tf.cast(errors, tf.float32))          
-
                 self._loss()
                 self._summary()
 

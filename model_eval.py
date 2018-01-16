@@ -91,8 +91,10 @@ def evaluate(model, supervisor, dataset):
         test_err = 0
         progress_bar = tqdm(range(num_test_batches), total=num_test_batches, ncols=70, leave=False, unit='b')
         for step in progress_bar:
+            if supervisor.should_stop(): 
+                break
             if len(X_test) == 0:
-                if step % 320 == 0:
+                if step % 100 == 0:
                     err, summary_str = sess.run([model.error_rate, model.train_summary])
                     supervisor.summary_writer.add_summary(summary_str, step)
                 else:
