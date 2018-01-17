@@ -8,7 +8,7 @@ from affnist import load_affnist, read_affnist_tfrecord
 from smallnorb import load_norb, read_norb_tfrecord
 from greebles import load_greebles, read_greebles_tfrecord
 
-def load_data(dataset, batch_size, is_training=True, samples_per_epoch=None, use_val_only=False):
+def load_data(dataset, batch_size, is_training=True, samples_per_epoch=None, use_val_only=True):
     if samples_per_epoch == 0:
         samples_per_epoch = None
     if dataset == 'mnist':

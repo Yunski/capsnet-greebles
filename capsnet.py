@@ -27,13 +27,17 @@ class CapsNet(object):
                 if use_test_queue:
                     self.X, self.labels = get_test_batch(cfg.dataset, cfg.test_batch_size, cfg.num_threads)
                     self.Y = tf.one_hot(self.labels, depth=num_classes, axis=1, dtype=tf.float32)
+                    self.inference(num_classes, is_training=False)
+                    self._loss()
+                    self._summary()
                 else:
                     self.X = tf.placeholder(tf.float32, shape=self.input_shape)
                     self.labels = tf.placeholder(tf.int32, shape=(self.input_shape[0],))
                     self.Y = tf.one_hot(self.labels, depth=num_classes, axis=1, dtype=tf.float32) 
-                self.inference(num_classes, is_training=False)
-                self._loss()
-                self._summary()
+                    self.inference(num_classes, is_training=False)
+                    self._loss()
+                    errors = tf.not_equal(tf.to_int32(self.labels), self.predictions)
+                    self.error_rate = tf.reduce_mean(tf.cast(errors, tf.float32))
 
 
     def inference(self, num_classes, eps=1e-9, is_training=True):

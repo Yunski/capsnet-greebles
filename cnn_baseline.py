@@ -20,12 +20,15 @@ class CNN(object):
             else:
                 if use_test_queue:
                     self.X, self.labels = get_test_batch(cfg.dataset, cfg.test_batch_size, cfg.num_threads)
+                    self.inference(self.X, num_classes, keep_prob=1.0)
+                    self.loss()
+                    self._summary()
                 else:
                     self.X = tf.placeholder(tf.float32, shape=self.input_shape)
                     self.labels = tf.placeholder(tf.int32, shape=(self.input_shape[0],))
-                self.inference(self.X, num_classes, keep_prob=1.0)
-                self.loss()
-                self._summary()
+                    self.inference(self.X, num_classes, keep_prob=1.0)
+                    self.loss()
+                    self.error()
 
 
     def inference(self, inputs, num_classes, keep_prob=0.5):
