@@ -25,7 +25,7 @@ class resnet(object):
                     self.labels = tf.placeholder(tf.int32, shape=(self.input_shape[0],))
                 self.inference(self.X, num_classes, keep_prob=1.0)
                 self.loss()
-                self.error()
+                self._summary()
 
 
     def inference(self, inputs, num_classes, keep_prob=0.5):
